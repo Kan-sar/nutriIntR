@@ -1,0 +1,10 @@
+{
+  "context": {"population": "adult", "meal_state": "fed"},
+  "interpolate": false,
+  "events": [
+    {"id": "iron_lunch", "nutrient": "iron", "form": "non_heme_food", "amount": 6, "unit": "mg", "time_minutes": 0, "meal_id": "lunch"},
+    {"id": "vitamin_c_lunch", "nutrient": "vitamin_c", "form": "ascorbic_acid", "amount": 50, "unit": "mg", "time_minutes": 0, "meal_id": "lunch"},
+    {"id": "phytate_lunch", "nutrient": "phytate", "form": "sodium_phytate_phosphorus", "amount": 25, "unit": "mg", "time_minutes": 0, "meal_id": "lunch"},
+    {"id": "calcium_evening", "nutrient": "calcium", "form": "food", "amount": 340, "unit": "mg", "time_minutes": 240, "meal_id": "dinner"}
+  ]
+}
