@@ -1,4 +1,4 @@
-# Nutrient Interaction Engine
+# nutriIntR
 
 An R research project for exploring nutrient amounts, forms, meal context and
 chronology through source-backed absorption findings, visualizations and JSON.
@@ -16,15 +16,15 @@ local consumption times; minute-offset input remains available. See
 
 ## Run with Docker Compose (recommended)
 
-Repository: [Kan-sar/nutrient-interaction-engine](https://github.com/Kan-sar/nutrient-interaction-engine)
+Repository: [Kan-sar/nutriIntR](https://github.com/Kan-sar/nutriIntR)
 (private; authenticate with GitHub before cloning).
 
 Install Docker Desktop with Linux containers (or Docker Engine plus Compose on
 Linux), then run from PowerShell, macOS Terminal or a Linux shell:
 
 ```sh
-git clone https://github.com/Kan-sar/nutrient-interaction-engine.git
-cd nutrient-interaction-engine
+git clone https://github.com/Kan-sar/nutriIntR.git
+cd nutriIntR
 docker compose up --build -d --wait --wait-timeout 120
 ```
 
