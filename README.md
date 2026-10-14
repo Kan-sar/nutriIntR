@@ -1,15 +1,11 @@
 # nutriIntR
 
-An R research project for exploring nutrient amounts, forms, meal context and
-chronology through source-backed absorption findings, visualizations and JSON.
+An R  project for exploring nutrient amounts, forms, meal context and
+chronology through nutrient correlation findings, visualizations and JSON.
 
 Development plan: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-Version 0.2 is a working research preview: an R engine, Shiny dashboard, JSON
-output and localhost API, with a small human-study evidence catalog and a
-reproducible Kaggle food-composition analysis.
-
-The catalog now covers **all 477 definitions in USDA nutrient.csv** (April 2026).
+The current dashboard now covers **all 477 nutrient definitions in the USDA food dataset** (April 2026).
 Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
 local consumption times; minute-offset input remains available. See
 [catalog coverage and units](docs/USDA_CATALOG.md) and [time/JSON examples](docs/JSON_API.md).
@@ -30,8 +26,7 @@ docker compose up --build -d --wait --wait-timeout 120
 
 Open the dashboard at **http://localhost:3838**. The API is at
 **http://localhost:8000**, with health status at `/health`.
-No local R, RStudio, Python or Kaggle credentials are required. The first build
-needs internet and may take several minutes; the built services run offline.
+the built services run offline.
 
 The image pins R 4.6.1 by base-image digest, restores package versions from
 `renv.lock`, downloads the committed Kaggle dataset version and verifies both
