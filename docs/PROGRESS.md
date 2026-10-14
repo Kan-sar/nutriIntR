@@ -22,6 +22,26 @@ Full catalog coverage does not expand the scientific evidence automatically.
 New unsupported pairs still return unknown findings; absolute predictions remain
 pending the validation work below.
 
+## Nutrient colors and recency display
+
+Interaction map and dose-reference graphics now use grey backgrounds. Each USDA
+definition and the phytate study extension has a deterministic, unique RGB color,
+consistent across views and input ordering. Same-nutrient events share a color.
+Labels and legends remain available because a large catalog inevitably contains
+visually similar hues. Opacity is relative to the latest entered event: the
+oldest event is 25% opaque, the latest is 100%, with linear scaling between them.
+Equal times have equal opacity; a simultaneous scenario is fully opaque.
+
+The dose view retains hollow phytate study anchors without assigning intake ages
+to published observations. A separate strip shows every scenario intake with
+its nutrient color and recency opacity; events use separate rows to avoid
+overplotting changing their apparent transparency. Arrow colors continue to
+describe evidence direction. No absorption calculation or JSON contract changed.
+
+The expanded suite has 84 checks, including palette uniqueness, cross-view color
+stability, repeat nutrients and recency behavior. Plot exports and both dashboard
+tabs were visually inspected.
+
 ## Completed
 
 - Saved the rubric-based plan with named milestones and eight-week pacing.

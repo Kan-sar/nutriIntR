@@ -23,7 +23,7 @@ analyze_interactions(events,
 result_json(result, pretty = TRUE)
 plot_timeline(result)
 plot_network(result)
-plot_phytate_curve(interpolate = FALSE)
+plot_phytate_curve(interpolate = FALSE, result = NULL)
 }
 \arguments{
   \item{events}{Data frame or list of event objects with id, nutrient, form,
@@ -34,7 +34,8 @@ plot_phytate_curve(interpolate = FALSE)
   \item{amount_mg}{Finite nonnegative phytate phosphorus mass in mg.}
   \item{interpolate}{Whether to permit exploratory log-dose interpolation between
     phytate study anchors; no extrapolation.}
-  \item{result}{Result of analyze_interactions.}
+  \item{result}{Result of analyze_interactions. May be NULL for a standalone
+    phytate study-reference curve without the scenario recency strip.}
   \item{pretty}{Whether to indent JSON output.}
 }
 \value{normalize_events returns a sorted data frame; read_evidence and

@@ -13,6 +13,6 @@ grDevices::png("reports/generated/network.png", width = 1100, height = 800, res 
 plot_network(result)
 grDevices::dev.off()
 grDevices::png("reports/generated/phytate-study.png", width = 1100, height = 700, res = 120)
-plot_phytate_curve(TRUE)
+plot_phytate_curve(TRUE, result = result)
 grDevices::dev.off()
 cat("Created JSON and three plots in reports/generated/.\n")

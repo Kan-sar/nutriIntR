@@ -93,10 +93,10 @@ ui <- fluidPage(
       uiOutput("status"),
       tabsetPanel(
         tabPanel("Timeline", plotOutput("timeline", height = "390px"), tableOutput("events")),
-        tabPanel("Interaction map", plotOutput("network", height = "500px"),
+        tabPanel("Interaction map", plotOutput("network", height = "500px"), uiOutput("network_key"),
           p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
         tabPanel("Findings", tableOutput("findings")),
-        tabPanel("Dose reference", plotOutput("curve", height = "430px"),
+        tabPanel("Dose reference", plotOutput("curve", height = "650px"), uiOutput("dose_key"),
           p(class = "note", "Study observations describe relative iron absorption in wheat-roll experiments. They are not a prediction for your entered meal. Dashed interpolation, when enabled in JSON, is exploratory.")),
         tabPanel("Sources", tableOutput("sources"),
           p(class = "note", "Abstract-level extraction; formal evidence grading and independent validation are pending. No numerical aggregate or absolute bioavailability is inferred.")),
@@ -171,7 +171,21 @@ server <- function(input, output, session) {
   })
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
-  output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate)})
+  output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate, result = current())})
+  nutrient_key <- reactive({
+    req(current()); events <- current()$events; styles <- event_plot_styles(current())
+    rows <- which(!duplicated(events$nutrient))
+    tagList(
+      div(style = "display:flex;flex-wrap:wrap;gap:8px 18px;margin:12px 0;",
+        lapply(rows, function(i) tags$span(
+          tags$span(style = paste0("display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;background:", styles$color[i], ";")),
+          events$nutrient_name[i]))),
+      p(class = "note", "Dot color identifies the nutrient in both views. Opacity is relative to the latest entered intake: oldest 25%, latest 100%; equal times share opacity. This is a recency display, not an absorption estimate."))
+  })
+  output$network_key <- renderUI(nutrient_key())
+  output$dose_key <- renderUI(tagList(nutrient_key(),
+    p(class = "note", tags$span(style = paste0("display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;border:2px solid ", nutrient_plot_colors("phytate"), ";")),
+      "Phytate phosphorus: hollow study-reference dots have no intake time and are not faded.")))
   output$events <- renderTable({req(current()); current()$events[, c("id", "consumed_at", "nutrient_name", "amount", "unit", "usda_nutrient_id", "time_minutes", "meal_id")]})
   output$findings <- renderTable({
     req(current()); findings <- current()$interactions

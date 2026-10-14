@@ -112,4 +112,15 @@ check(fails(analyze_interactions(mixed)), "mixed absolute and relative times rej
 provided <- clock$events; provided[[1]]$time_minutes <- 999
 check(identical(clock_result$events$time_minutes, analyze_interactions(provided)$events$time_minutes),
   "timestamps authoritative over stale offsets")
+styles <- event_plot_styles(clock_result)
+check(!anyDuplicated(nutrient_plot_colors(c(catalog$key, "phytate"))), "unique identity colors for every USDA definition and phytate extension")
+check(identical(nutrient_plot_colors(c("iron", "vitamin_c")), rev(nutrient_plot_colors(c("vitamin_c", "iron")))),
+  "nutrient colors stable across ordering and views")
+check(styles$alpha[1] == .25 && styles$alpha[nrow(styles)] == 1, "oldest and newest intake opacity endpoints")
+check(styles$alpha[1] == styles$alpha[2], "equal intake times share opacity")
+same_time <- clock_result; same_time$events$time_minutes[] <- 0
+check(all(event_plot_styles(same_time)$alpha == 1), "simultaneous scenario stays fully opaque")
+repeated <- clock_result; repeated$events$nutrient[2] <- repeated$events$nutrient[1]
+check(event_plot_styles(repeated)$color[1] == event_plot_styles(repeated)$color[2], "repeated nutrient retains identity color")
+check(all(diff(styles$alpha) >= 0), "recency opacity increases chronologically")
 cat("\n", checks, "checks passed.\n")
