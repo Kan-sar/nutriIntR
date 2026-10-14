@@ -1,0 +1,20 @@
+{
+  "source": "USDA FoodData Central",
+  "release": "2026-04-30",
+  "source_url": "https://fdc.nal.usda.gov/download-datasets/",
+  "archive_url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_csv_2026-04-30.zip",
+  "archive_entry": "FoodData_Central_foundation_food_csv_2026-04-30/nutrient.csv",
+  "acquired_on": "2026-10-14",
+  "license": "USDA FoodData Central public domain / CC0",
+  "archive_md5": "95aab07f0e6545fcfc5784b0baf5e551",
+  "csv_md5": "33d56417f58847ebfe582214b4b01898",
+  "rows": 477,
+  "columns": [
+    "id",
+    "name",
+    "unit_name",
+    "nutrient_nbr",
+    "rank"
+  ],
+  "scope": "Complete nutrient.csv supporting dictionary, including energy, factors and other components; not an interaction evidence database."
+}
