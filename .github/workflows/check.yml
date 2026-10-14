@@ -15,6 +15,8 @@ jobs:
         run: Rscript --vanilla scripts/restore_environment.R
       - name: Core tests
         run: Rscript tests/run_tests.R
+      - name: Dashboard workflow tests
+        run: Rscript tests/test_app.R
       - name: Generate demonstration outputs
         run: Rscript scripts/demo.R
       - uses: actions/setup-python@v5

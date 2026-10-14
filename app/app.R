@@ -44,75 +44,79 @@ prepare_timing <- function(payload, mode, origin) {
   payload
 }
 
+view_heading <- function(title, description) div(class = "view-heading", h2(title), p(description))
+
 ui <- fluidPage(
-  tags$head(tags$style(HTML("
-    body {background:#f2f6f8;color:#163d4f;font-family:'Segoe UI',sans-serif}
-    .container-fluid {max-width:1500px;padding:24px}
-    .hero {background:#163d4f;color:white;padding:26px 32px;border-radius:18px;margin-bottom:22px}
-    .hero h1 {font-size:32px;margin:6px 0 10px;font-weight:650}
-    .eyebrow {color:#7addce;font-size:12px;letter-spacing:2px;text-transform:uppercase}
-    .well {background:white;border:1px solid #dce6ec;border-radius:14px;box-shadow:none}
-    .panel-body {background:white;border-radius:12px}
-    .btn-primary {background:#128b7c;border-color:#128b7c}
-    .nav-tabs>li.active>a {color:#128b7c;font-weight:600}
-    textarea {font-family:Consolas,monospace!important;font-size:12px!important}
-    .note {font-size:13px;color:#526b78;line-height:1.6}
-    .status {padding:14px 18px;background:#e4f4f0;border-radius:10px;margin-bottom:16px}
-    table {font-size:12px} .tab-content {padding-top:18px}
-    #events, #findings, #sources {overflow-x:auto}
-    #dose_recency {overflow-x:auto;background:#d9d9d9;border-radius:10px;padding:12px;margin:16px 0}
-    .recency-table {width:100%;font-size:12px}
-    .recency-table th,.recency-table td {padding:7px 6px;border-bottom:1px solid #c1c1c1;vertical-align:top}
-    .recency-table small {color:#53616a}
-  "))),
-  div(class = "hero", div(class = "eyebrow", "Nutrient interaction engine / research preview"),
-    h1("See how nutrients meet."),
-    p("Explore amounts, chemical forms and chronology through human-study evidence.")),
-  sidebarLayout(
-    sidebarPanel(width = 4,
-      h4("Build a scenario"),
-      selectizeInput("nutrient", "Nutrient — search name or USDA ID", nutrient_choices, selected = "iron"),
-      textOutput("nutrient_hint"),
+  title = "Nutrient Lab | Interaction engine",
+  tags$head(tags$link(rel = "stylesheet", href = "style.css"),
+    tags$meta(name = "viewport", content = "width=device-width, initial-scale=1")),
+  tags$a(class = "skip-link", href = "#workspace", "Skip to results"),
+  tags$header(class = "app-header",
+    div(class = "brand", span(class = "brand-mark", "n"),
+      div(strong("Nutrient Lab"), span(class = "brand-subtitle", "Interaction research workspace"))),
+    div(class = "header-meta", span(class = "preview-badge", "Research preview"),
+      span("USDA catalog / 477 definitions"))),
+  div(class = "page-intro", div(div(class = "eyebrow", "Explore / compare / understand"),
+    h1("A clearer view of nutrient interactions."),
+    p("Connect what you consumed with when you consumed it. Explore the evidence, not assumptions."))),
+  div(class = "workspace-grid",
+    tags$aside(class = "composer", `aria-label` = "Scenario builder",
+      div(class = "section-title", span(class = "step-label", "01"), h2("Build your scenario")),
+      p(class = "note", "Add an intake, then analyze your draft."),
+      selectizeInput("nutrient", "Nutrient", nutrient_choices, selected = "iron"),
+      div(class = "field-hint", textOutput("nutrient_hint")),
       selectInput("form", "Chemical form", nutrient_forms("iron")),
       fluidRow(column(6, numericInput("amount", "Amount", 6, min = 0)),
                column(6, selectInput("unit", "Unit", c("mg", "g", "mcg")))),
-      radioButtons("timing_mode", "When was it consumed?", c("Time consumed" = "clock", "Minutes from scenario start" = "offset"), selected = "clock"),
+      div(class = "field-divider", "Intake details"),
+      radioButtons("timing_mode", "Timing", c("Clock time" = "clock", "Minutes from start" = "offset"), selected = "clock", inline = TRUE),
       conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", 0, min = 0)),
       conditionalPanel("input.timing_mode == 'clock'",
         tags$div(class = "form-group", tags$label(`for` = "consumed_time", "Time consumed"),
           tags$input(id = "consumed_time", type = "time", class = "form-control",
             value = clock_default, step = "60",
             onchange = "Shiny.setInputValue('consumed_time', this.value, {priority:'event'});")),
-        p(class = "note", "Select the time on the clock. Times in one scenario refer to the same day.")),
-      textInput("meal", "Meal ID", "lunch"),
-      actionButton("add", "Add event to draft"),
-      hr(),
-      textAreaInput("scenario", "Scenario JSON", example_text, height = "260px"),
-      actionButton("analyze", "Analyze scenario", class = "btn-primary"),
-      actionButton("reset", "Reset example"),
-      br(), br(), downloadButton("download", "Download result JSON"),
-      p(class = "note", "477 USDA definitions are available. Use each measure's native unit; activity units and equivalents are retained. Most pairs do not yet have curated interaction evidence. Edit JSON to remove events or change context.")
+        p(class = "field-hint", "Local time. All clock entries refer to the same day.")),
+      textInput("meal", "Meal label", "lunch"),
+      actionButton("add", "+ Add intake to draft", class = "btn-add"),
+      tags$details(class = "json-editor", tags$summary("Advanced / edit scenario JSON"),
+        p(class = "note", "Edit or remove events and change study context here. Use dated local times for overnight scenarios."),
+        textAreaInput("scenario", "Scenario JSON", example_text, height = "260px")),
+      div(class = "composer-actions", textOutput("draft_summary"),
+        actionButton("analyze", "Analyze scenario", class = "btn-primary"),
+        actionButton("reset", "Restore example", class = "btn-reset")),
+      p(class = "field-hint", "Catalog coverage is not evidence coverage. Most nutrient pairs have no curated interaction evidence.")
     ),
-    mainPanel(width = 8,
+    tags$main(id = "workspace", tabindex = "-1", class = "results-workspace",
+      div(class = "workspace-toolbar", div(class = "section-title", span(class = "step-label", "02"), h2("Explore results")),
+        downloadButton("download", "Export JSON")),
       uiOutput("status"),
+      uiOutput("metrics"),
+      div(class = "analysis-card",
       tabsetPanel(
-        tabPanel("Timeline", plotOutput("timeline", height = "390px"), tableOutput("events")),
-        tabPanel("Interaction map", plotOutput("network", height = "500px"), uiOutput("network_key"),
+        id = "analysis_view",
+        tabPanel("Timeline", view_heading("Intake timeline", "Every intake in order, with amounts and local consumption times."),
+          plotOutput("timeline", height = "340px"), h3("Analyzed intakes"), tableOutput("events")),
+        tabPanel("Interaction map", view_heading("How the nutrients connect", "Directed links show evidence matches, not a combined absorption prediction."),
+          plotOutput("network", height = "460px"), uiOutput("network_key"),
           p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
-        tabPanel("Findings", tableOutput("findings")),
-        tabPanel("Dose reference", plotOutput("curve", height = "400px"), uiOutput("dose_recency"), uiOutput("dose_key"),
+        tabPanel("Findings", view_heading("Evidence & applicability", "Inspect each directed pair, including unresolved cases and source citations."), tableOutput("findings")),
+        tabPanel("Dose reference", view_heading("Dose in context", "Study observations and the recency of your intakes, kept distinct."),
+          plotOutput("curve", height = "360px"), uiOutput("dose_recency"), uiOutput("dose_key"),
           p(class = "note", "Study observations describe relative iron absorption in wheat-roll experiments. They are not a prediction for your entered meal. Dashed interpolation, when enabled in JSON, is exploratory.")),
-        tabPanel("Sources", tableOutput("sources"),
+        tabPanel("Sources", view_heading("Trace the evidence", "Review study scope, dose basis and limitations before interpreting a finding."), tableOutput("sources"),
           p(class = "note", "Abstract-level extraction; formal evidence grading and independent validation are pending. No numerical aggregate or absolute bioavailability is inferred.")),
-        tabPanel("USDA catalog", p("All 477 definitions from USDA nutrient.csv, April 2026."),
+        tabPanel("USDA catalog", view_heading("The nutrient library", "All 477 definitions from USDA nutrient.csv, April 2026."),
           textInput("catalog_search", "Filter definitions by name, ID or unit", ""),
           textOutput("catalog_count"), tableOutput("catalog_table"),
           p(class = "note", "First 50 matching definitions are shown. Refine the filter to inspect others. Catalog membership does not imply interaction evidence.")),
-        tabPanel("Food correlations", uiOutput("food")),
-        tabPanel("JSON", verbatimTextOutput("json"))
-      )
+        tabPanel("Food correlations", view_heading("Patterns across foods", "Nutrient co-occurrence is not evidence of absorption effects."), uiOutput("food")),
+        tabPanel("JSON", view_heading("Structured result", "The same analysis, ready for reproducible workflows and downstream tools."), verbatimTextOutput("json"))
+      ))
     )
-  )
+  ),
+  tags$footer(class = "app-footer", span("Nutrient Lab / Evidence before inference"),
+    span("Research tool. Not a clinical or personalized nutrition recommendation."))
 )
 
 server <- function(input, output, session) {
@@ -136,13 +140,20 @@ server <- function(input, output, session) {
   output$catalog_table <- renderTable(utils::head(catalog_filtered()[, c("id", "name", "unit_name", "nutrient_nbr", "definition_status")], 50))
   current <- reactiveVal(NULL)
   error <- reactiveVal(NULL)
+  analyzed_text <- reactiveVal(example_text)
+  output$draft_summary <- renderText({
+    tryCatch({
+      draft <- jsonlite::fromJSON(input$scenario, simplifyVector = FALSE)
+      paste(length(draft$events), "intakes in draft")
+    }, error = function(e) "Check draft JSON")
+  })
   run <- function(text) {
     tryCatch({
       if (nchar(text, type = "bytes") > 1024 * 1024) stop("Scenario exceeds 1 MB.")
       payload <- jsonlite::fromJSON(text, simplifyVector = FALSE)
       if (is.null(payload$context) || is.null(payload$events)) stop("Supply context and events.")
       flag <- if (is.null(payload$interpolate)) FALSE else payload$interpolate
-      current(analyze_interactions(payload$events, payload$context, flag)); error(NULL)
+      current(analyze_interactions(payload$events, payload$context, flag)); error(NULL); analyzed_text(text)
     }, error = function(e) {current(NULL); error(conditionMessage(e))})
   }
   observeEvent(TRUE, run(example_text), once = TRUE)
@@ -167,11 +178,23 @@ server <- function(input, output, session) {
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
   })
   output$status <- renderUI({
-    if (!is.null(error())) return(div(class = "status", strong("Check scenario: "), error()))
+    if (!is.null(error())) return(div(class = "status status-error", role = "alert", strong("Check scenario: "), error()))
     req(current()); result <- current()
-    count <- sum(vapply(result$interactions, function(f) f$status == "qualitative_evidence", logical(1)))
-    div(class = "status", strong(paste(nrow(result$events), "events /", count, "matched findings")),
-      br(), "Absolute bioavailability: unavailable. Findings below show study evidence and unresolved cases.")
+    changed <- !is.null(input$scenario) && !identical(input$scenario, analyzed_text())
+    div(class = if (changed) "status status-draft" else "status", role = "status", `aria-live` = "polite",
+      strong(if (changed) "Draft changed" else "Analysis ready"),
+      span(if (changed) "Analyze to apply your edits. Results and export still reflect the last analyzed scenario."
+        else "Study evidence only. Absolute bioavailability is not estimated."))
+  })
+  output$metrics <- renderUI({
+    req(current()); result <- current()
+    matched <- sum(vapply(result$interactions, function(f) f$status == "qualitative_evidence", logical(1)))
+    metric <- function(value, label, detail) div(class = "metric", span(class = "metric-label", label),
+      strong(class = "metric-value", value), span(class = "metric-detail", detail))
+    div(class = "metrics",
+      metric(nrow(result$events), "Intake events", "In the analyzed scenario"),
+      metric(matched, "Evidence matches", "Applicable qualitative findings"),
+      metric(length(result$interactions) - matched, "Unresolved pairs", "No applicable qualitative finding"))
   })
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
@@ -205,7 +228,12 @@ server <- function(input, output, session) {
   output$dose_key <- renderUI(tagList(nutrient_key(),
     p(class = "note", tags$span(style = paste0("display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;border:2px solid ", nutrient_plot_colors("phytate"), ";")),
       "Phytate phosphorus: hollow study-reference dots have no intake time and are not faded.")))
-  output$events <- renderTable({req(current()); current()$events[, c("id", "consumed_at", "nutrient_name", "amount", "unit", "usda_nutrient_id", "time_minutes", "meal_id")]})
+  output$events <- renderTable({
+    req(current()); e <- current()$events
+    data.frame(Intake = e$id, Nutrient = e$nutrient_name, Amount = paste(e$amount, e$unit),
+      Consumed = ifelse(is.na(e$consumed_at) | !nzchar(e$consumed_at), paste0("+", e$time_minutes, " min"), e$consumed_at),
+      Meal = e$meal_id, check.names = FALSE)
+  }, striped = FALSE, spacing = "m")
   output$findings <- renderTable({
     req(current()); findings <- current()$interactions
     if (!length(findings)) return(data.frame(message = "Add another event to explore interactions."))

@@ -96,6 +96,16 @@ or executed; acquisition used Kaggle's public API.
 
 ## Next milestone: expand and appraise the evidence
 
+### Interface refinement
+
+The dashboard now has a responsive research-workspace layout, summary cards,
+an expandable JSON editor, a visible draft count and explicit stale-result
+warnings. Native local-time entry, nutrient hue/opacity/brightness and the grey
+dose recency table are retained. References and design rationale are recorded in
+`docs/UI_DESIGN.md`. The 91 core checks and the new Shiny server workflow tests
+pass locally; browser checks exercise intake entry, analysis, recency and catalog
+filtering. Remote CI is tracked separately.
+
 1. Retrieve full texts and independently verify nutrient forms, dose ranges,
    populations, timing protocols, effect definitions and uncertainty.
 2. Expand the source schema to study arms and participant-level outcomes where
