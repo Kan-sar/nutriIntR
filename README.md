@@ -14,6 +14,49 @@ Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
 local consumption times; minute-offset input remains available. See
 [catalog coverage and units](docs/USDA_CATALOG.md) and [time/JSON examples](docs/JSON_API.md).
 
+## Run with Docker Compose (recommended)
+
+Repository: [Kan-sar/nutrient-interaction-engine](https://github.com/Kan-sar/nutrient-interaction-engine)
+(private; authenticate with GitHub before cloning).
+
+Install Docker Desktop with Linux containers (or Docker Engine plus Compose on
+Linux), then run from PowerShell, macOS Terminal or a Linux shell:
+
+```sh
+git clone https://github.com/Kan-sar/nutrient-interaction-engine.git
+cd nutrient-interaction-engine
+docker compose up --build -d --wait --wait-timeout 120
+```
+
+Open the dashboard at **http://localhost:3838**. The API is at
+**http://localhost:8000**, with health status at `/health`.
+No local R, RStudio, Python or Kaggle credentials are required. The first build
+needs internet and may take several minutes; the built services run offline.
+
+The image pins R 4.6.1 by base-image digest, restores package versions from
+`renv.lock`, downloads the committed Kaggle dataset version and verifies both
+archive and CSV checksums. It runs all R tests, generates reports and validates
+the JSON contracts during the build. USDA definitions are already bundled.
+Application processes run as a non-root user and ports bind only to localhost.
+
+```sh
+docker compose ps                 # both services should be healthy
+docker compose logs -f            # show service output
+docker compose down              # stop and remove project containers
+```
+
+If the ports are occupied, set `APP_PORT` and `API_PORT` before starting:
+
+```powershell
+$env:APP_PORT = "3839"
+$env:API_PORT = "8001"
+docker compose up --build -d --wait --wait-timeout 120
+```
+
+On macOS/Linux, use `APP_PORT=3839 API_PORT=8001 docker compose up --build -d --wait`.
+See [reproduction and verification](docs/REPRODUCIBILITY.md) for tests, report
+export and the boundaries of the version pins.
+
 ## Run in RStudio
 
 Open `nutrient-engine.Rproj`, then restore the locked environment:
@@ -29,11 +72,13 @@ The lockfile records the development environment (R 4.6.1 and package versions).
 ## Reproduce the data analysis and examples
 
 ```r
-source("scripts/acquire_kaggle.R")
+source("scripts/restore_data.R")
 source("scripts/analyze_foods.R")
 source("scripts/demo.R")
 ```
 
+`restore_data.R` reproduces the committed snapshot; `acquire_kaggle.R` is an
+explicit dataset-update operation and can change the provenance manifest.
 The public Kaggle dataset has 8,789 food records and 77 columns. Acquisition is
 versioned and checksummed in `data-raw/kaggle-manifest.json`; downloads are ignored
 by Git. Analysis reports and plots are generated in `reports/generated/`.
@@ -70,8 +115,8 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
   The dose view keeps timeless study observations hollow and lists entered intakes
   in a recency table with consumption times, age and visual scaling values.
 - Study-specific phytate observations and optional bounded log-dose interpolation.
-- Spearman correlations, coverage and pair counts for five nutrients across food
-  records, with explicit limits on interpretation.
+- Custom Spearman correlations and pair counts for the nutrients selected in the
+  analyzed scenario, using an explicit 71-measure USDA-to-food-data crosswalk.
 
 This is currently an **evidence explorer**. Absolute bioavailability and combined
 effects return `null` because no validated general model has been fitted. A
@@ -88,6 +133,8 @@ milestones. Food-composition columns do not provide human absorption labels.
 
 ```text
 Rscript tests/run_tests.R
+Rscript tests/test_app.R
+Rscript tests/test_food.R
 Rscript scripts/demo.R
 python tests/validate_schemas.py
 R CMD build .

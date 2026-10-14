@@ -3,6 +3,8 @@
 .Ruserdata
 .Rproj.user/
 .Renviron
+.env
+.env.*
 renv/library/
 renv/staging/
 renv/cache/
