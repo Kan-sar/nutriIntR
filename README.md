@@ -73,8 +73,8 @@ milestones. Food-composition columns do not provide human absorption labels.
 ## Verify
 
 ```text
-Rscript --vanilla tests/run_tests.R
-Rscript --vanilla scripts/demo.R
+Rscript tests/run_tests.R
+Rscript scripts/demo.R
 python tests/validate_schemas.py
 R CMD build .
 R CMD check --no-manual nutrientengine_0.1.0.tar.gz

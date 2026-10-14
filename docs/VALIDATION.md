@@ -33,5 +33,9 @@ official PyPI wheels were downloaded over verified HTTPS using PowerShell, their
 SHA-256 hashes matched PyPI metadata, and pip installed them locally without a
 network index. No certificate verification was bypassed.
 
-See the repository's Actions page for the remote Linux CI outcome. It is separate
-from these local results and runs again on later commits.
+The initial Linux CI run passed the core and schema checks but exposed a library
+selection bug at package checking: restoring under `--vanilla` populated the user
+library while later commands activated an empty project library. Restoration now
+targets `renv::paths$library()` explicitly, and test/demo commands activate the
+project. CI also pins R 4.6.1 to match the lockfile. See Actions for the subsequent
+run; it remains separate from the local outcomes above.
