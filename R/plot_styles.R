@@ -34,11 +34,33 @@ nutrient_plot_colors <- function(keys) {
 event_plot_styles <- function(result) {
   events <- result$events
   span <- diff(range(events$time_minutes))
-  alpha <- if (span == 0) rep(1, nrow(events)) else
-    .25 + .75 * (events$time_minutes - min(events$time_minutes)) / span
+  recency <- if (span == 0) rep(1, nrow(events)) else
+    (events$time_minutes - min(events$time_minutes)) / span
+  alpha <- .25 + .75 * recency
+  brightness <- .45 + .55 * recency
   colors <- nutrient_plot_colors(events$nutrient)
+  display_colors <- vapply(seq_along(colors), function(i) {
+    rgb <- as.numeric(grDevices::col2rgb(colors[i])) / 255 * brightness[i]
+    grDevices::rgb(rgb[1], rgb[2], rgb[3])
+  }, character(1))
   rgba <- vapply(seq_along(colors), function(i)
-    grDevices::adjustcolor(colors[i], alpha.f = alpha[i]), character(1))
+    grDevices::adjustcolor(display_colors[i], alpha.f = alpha[i]), character(1))
   data.frame(event_id = events$id, nutrient = events$nutrient, color = colors,
-    alpha = alpha, rgba = rgba, stringsAsFactors = FALSE)
+    alpha = alpha, brightness = brightness, display_color = display_colors,
+    rgba = rgba, stringsAsFactors = FALSE)
+}
+
+intake_recency_table <- function(result) {
+  events <- result$events
+  styles <- event_plot_styles(result)
+  consumed <- events$consumed_at
+  consumed[is.na(consumed)] <- paste("Minute", events$time_minutes[is.na(consumed)])
+  table <- data.frame(event_id = events$id, nutrient = events$nutrient_name,
+    amount = events$amount, unit = events$unit, consumed = consumed,
+    age_minutes = max(events$time_minutes) - events$time_minutes,
+    opacity_percent = round(styles$alpha * 100), brightness_percent = round(styles$brightness * 100),
+    display_color = styles$display_color, alpha = styles$alpha, stringsAsFactors = FALSE)
+  table <- table[order(table$age_minutes, table$event_id, method = "radix"), , drop = FALSE]
+  rownames(table) <- NULL
+  table
 }

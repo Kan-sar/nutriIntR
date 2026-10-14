@@ -60,6 +60,10 @@ ui <- fluidPage(
     .status {padding:14px 18px;background:#e4f4f0;border-radius:10px;margin-bottom:16px}
     table {font-size:12px} .tab-content {padding-top:18px}
     #events, #findings, #sources {overflow-x:auto}
+    #dose_recency {overflow-x:auto;background:#d9d9d9;border-radius:10px;padding:12px;margin:16px 0}
+    .recency-table {width:100%;font-size:12px}
+    .recency-table th,.recency-table td {padding:7px 6px;border-bottom:1px solid #c1c1c1;vertical-align:top}
+    .recency-table small {color:#53616a}
   "))),
   div(class = "hero", div(class = "eyebrow", "Nutrient interaction engine / research preview"),
     h1("See how nutrients meet."),
@@ -96,7 +100,7 @@ ui <- fluidPage(
         tabPanel("Interaction map", plotOutput("network", height = "500px"), uiOutput("network_key"),
           p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
         tabPanel("Findings", tableOutput("findings")),
-        tabPanel("Dose reference", plotOutput("curve", height = "650px"), uiOutput("dose_key"),
+        tabPanel("Dose reference", plotOutput("curve", height = "400px"), uiOutput("dose_recency"), uiOutput("dose_key"),
           p(class = "note", "Study observations describe relative iron absorption in wheat-roll experiments. They are not a prediction for your entered meal. Dashed interpolation, when enabled in JSON, is exploratory.")),
         tabPanel("Sources", tableOutput("sources"),
           p(class = "note", "Abstract-level extraction; formal evidence grading and independent validation are pending. No numerical aggregate or absolute bioavailability is inferred.")),
@@ -171,7 +175,22 @@ server <- function(input, output, session) {
   })
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
-  output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate, result = current())})
+  output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate)})
+  output$dose_recency <- renderUI({
+    req(current()); data <- intake_recency_table(current())
+    tagList(h4("Intake recency"),
+      p(class = "note", "Newest first. Age is minutes before the latest entered intake (not the current clock)."),
+      tags$table(class = "recency-table",
+        tags$thead(tags$tr(lapply(c("Nutrient / event", "Amount", "Consumed", "Age (min)", "Opacity", "Brightness"), tags$th))),
+        tags$tbody(lapply(seq_len(nrow(data)), function(i) tags$tr(
+          tags$td(tags$span(style = paste0("display:inline-block;width:13px;height:13px;border-radius:50%;margin-right:6px;background:",
+            data$display_color[i], ";opacity:", data$alpha[i], ";")),
+            data$nutrient[i], tags$br(), tags$small(data$event_id[i])),
+          tags$td(paste(data$amount[i], data$unit[i])), tags$td(data$consumed[i]),
+          tags$td(format(round(data$age_minutes[i], 2), trim = TRUE)),
+          tags$td(paste0(data$opacity_percent[i], "%")), tags$td(paste0(data$brightness_percent[i], "%"))
+        )))))
+  })
   nutrient_key <- reactive({
     req(current()); events <- current()$events; styles <- event_plot_styles(current())
     rows <- which(!duplicated(events$nutrient))
@@ -180,7 +199,7 @@ server <- function(input, output, session) {
         lapply(rows, function(i) tags$span(
           tags$span(style = paste0("display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;background:", styles$color[i], ";")),
           events$nutrient_name[i]))),
-      p(class = "note", "Dot color identifies the nutrient in both views. Opacity is relative to the latest entered intake: oldest 25%, latest 100%; equal times share opacity. This is a recency display, not an absorption estimate."))
+      p(class = "note", "Dot hue identifies the nutrient. Relative to the latest entered intake, opacity increases from 25% to 100% and color brightness from 45% to 100%. Equal times share both values. These are display settings, not absorption estimates."))
   })
   output$network_key <- renderUI(nutrient_key())
   output$dose_key <- renderUI(tagList(nutrient_key(),

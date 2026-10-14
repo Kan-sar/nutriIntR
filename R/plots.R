@@ -54,15 +54,15 @@ plot_network <- function(result) {
   graphics::legend("bottom", c("Enhancing", "Inhibiting", "No detected effect", "Unresolved"),
     col = direction_color(c("enhances", "inhibits", "no_detected_effect", "unknown")),
     lty = 1, bty = "n", cex = .7, horiz = TRUE)
-  graphics::mtext("Dot color = nutrient | dot opacity = intake recency", side = 3, cex = .75)
+  graphics::mtext("Dot hue = nutrient | opacity + brightness = intake recency", side = 3, cex = .75)
 }
 
 plot_phytate_curve <- function(interpolate = FALSE, result = NULL) {
   anchors <- utils::read.csv(engine_file("phytate_reference.csv"))
-  old <- graphics::par(no.readonly = TRUE)
-  on.exit({graphics::layout(1); graphics::par(old)})
-  if (!is.null(result)) graphics::layout(matrix(c(1, 2), ncol = 1), heights = c(1.8, 1.3))
-  graphics::par(mar = c(4, 5, 4, 2), bg = "#D9D9D9")
+  # result is retained for callers of the previous interface. Recency is now a
+  # native dashboard table rather than a second plot panel.
+  old <- graphics::par(mar = c(4, 5, 4, 2), bg = "#D9D9D9")
+  on.exit(graphics::par(old))
   phytate_color <- nutrient_plot_colors("phytate")
   graphics::plot(anchors$phytate_phosphorus_mg, anchors$relative_absorption,
     log = "x", ylim = c(0, 1), pch = 1, col = phytate_color, cex = 1.5, lwd = 2,
@@ -72,20 +72,4 @@ plot_phytate_curve <- function(interpolate = FALSE, result = NULL) {
   if (interpolate) graphics::lines(anchors$phytate_phosphorus_mg,
     anchors$relative_absorption, col = phytate_color, lty = 2)
   graphics::mtext("PMID 2911999 | Hollow dots: study observations, without intake times", cex = .7)
-  if (!is.null(result)) {
-    styles <- event_plot_styles(result)
-    events <- result$events
-    row <- seq_len(nrow(events))
-    labels <- events$nutrient_name
-    labels <- ifelse(nchar(labels) > 26, paste0(substr(labels, 1, 23), "..."), labels)
-    span <- range(events$time_minutes)
-    if (diff(span) == 0) span <- span + c(-10, 10)
-    graphics::par(mar = c(4, 11, 3, 2))
-    graphics::plot(events$time_minutes, row, type = "n", yaxt = "n", ylab = "",
-      xlab = "Minutes from earliest entered intake", xlim = span + c(-1, 1) * diff(span) * .07,
-      ylim = c(.5, nrow(events) + .5), bty = "n", main = "Scenario intake recency")
-    graphics::axis(2, at = row, labels = labels, las = 1, cex.axis = .7)
-    graphics::points(events$time_minutes, row, pch = 19, col = styles$rgba, cex = 1.7)
-    graphics::mtext("Filled dots: entered intakes | older = faded, latest = opaque", side = 3, cex = .7)
-  }
 }

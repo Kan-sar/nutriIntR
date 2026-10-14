@@ -123,4 +123,14 @@ check(all(event_plot_styles(same_time)$alpha == 1), "simultaneous scenario stays
 repeated <- clock_result; repeated$events$nutrient[2] <- repeated$events$nutrient[1]
 check(event_plot_styles(repeated)$color[1] == event_plot_styles(repeated)$color[2], "repeated nutrient retains identity color")
 check(all(diff(styles$alpha) >= 0), "recency opacity increases chronologically")
+check(styles$brightness[1] == .45 && styles$brightness[nrow(styles)] == 1,
+  "oldest and latest brightness endpoints")
+check(all(diff(styles$brightness) >= 0), "brightness increases with recency")
+check(all(event_plot_styles(same_time)$brightness == 1), "simultaneous scenario uses full brightness")
+check(identical(styles$display_color[nrow(styles)], styles$color[nrow(styles)]), "latest intake retains full identity color")
+recency_table <- intake_recency_table(clock_result)
+check(identical(recency_table$age_minutes, c(0, 0, 330, 330)), "recency table shows newest first and exact intake ages")
+check(recency_table$consumed[1] == "13:30" && recency_table$opacity_percent[1] == 100 &&
+  recency_table$brightness_percent[1] == 100, "table matches selected time and display scaling")
+check(all(intake_recency_table(same_time)$age_minutes == 0), "equal-time table ages are zero")
 cat("\n", checks, "checks passed.\n")

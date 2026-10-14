@@ -33,14 +33,27 @@ oldest event is 25% opaque, the latest is 100%, with linear scaling between them
 Equal times have equal opacity; a simultaneous scenario is fully opaque.
 
 The dose view retains hollow phytate study anchors without assigning intake ages
-to published observations. A separate strip shows every scenario intake with
-its nutrient color and recency opacity; events use separate rows to avoid
-overplotting changing their apparent transparency. Arrow colors continue to
-describe evidence direction. No absorption calculation or JSON contract changed.
+to published observations. Arrow colors continue to describe evidence direction.
+No absorption calculation or JSON contract changed.
 
 The expanded suite has 84 checks, including palette uniqueness, cross-view color
 stability, repeat nutrients and recency behavior. Plot exports and both dashboard
 tabs were visually inspected.
+
+### Brightness and recency table refinement
+
+Event opacity now scales from 25% to 100% and the identity color's RGB brightness
+factor from 45% to 100%, both increasing linearly with recency in the scenario.
+The latest event uses its full identity color; older events use dimmed variants of
+the same hue. Equal times share both factors; simultaneous scenarios use 100%.
+These visual factors do not imply nutrient absorption or pharmacokinetic decay.
+
+The dose-reference intake strip has been replaced with a native table. It lists
+every intake, newest first, with nutrient/event ID, original amount/unit, consumption
+time, age in minutes relative to the latest entered event, opacity and brightness.
+Each row uses the same combined color/opacity swatch as the interaction map.
+The study curve remains a separate grey-backed chart with timeless hollow points.
+The suite now passes 91 checks, including brightness and recency-table behavior.
 
 ## Completed
 

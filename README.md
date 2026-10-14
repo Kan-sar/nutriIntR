@@ -66,8 +66,9 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
 - Timeline, directed evidence map, phytate study dose curve, source table and
   downloadable JSON. All unsupported directed pairs remain visible in JSON.
 - Interaction map and dose view use grey backgrounds, stable nutrient identity
-  colors and intake-recency opacity (oldest 25%, latest 100%). The dose view keeps
-  timeless study observations hollow and shows entered intakes in a separate strip.
+  colors and intake-recency opacity (25% to 100%) plus brightness (45% to 100%).
+  The dose view keeps timeless study observations hollow and lists entered intakes
+  in a recency table with consumption times, age and visual scaling values.
 - Study-specific phytate observations and optional bounded log-dose interpolation.
 - Spearman correlations, coverage and pair counts for five nutrients across food
   records, with explicit limits on interpretation.
