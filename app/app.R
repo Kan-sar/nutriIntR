@@ -20,6 +20,7 @@ ui <- fluidPage(
     .note {font-size:13px;color:#526b78;line-height:1.6}
     .status {padding:14px 18px;background:#e4f4f0;border-radius:10px;margin-bottom:16px}
     table {font-size:12px} .tab-content {padding-top:18px}
+    #events, #findings, #sources {overflow-x:auto}
   "))),
   div(class = "hero", div(class = "eyebrow", "Nutrient interaction engine / research preview"),
     h1("See how nutrients meet."),
