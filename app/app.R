@@ -5,9 +5,10 @@ for (file in list.files(file.path(project_root, "R"), pattern = "\\.R$", full.na
 engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
 example_text <- paste(readLines(engine_file("example-clock.json")), collapse = "\n")
 catalog <- nutrient_catalog()
-nutrient_choices <- stats::setNames(catalog$key,
-  paste0(catalog$name, " | USDA ", catalog$id, " | ", catalog$unit_name))
-nutrient_choices <- c(nutrient_choices, "Phytate phosphorus | study extension | mg" = "phytate")
+choice_labels <- nutrient_display_names(catalog)
+choice_order <- order(tolower(choice_labels))
+nutrient_choices <- stats::setNames(catalog$key[choice_order], choice_labels[choice_order])
+nutrient_choices <- c(nutrient_choices, "Phytate phosphorus" = "phytate")
 clock_default <- "08:00"
 
 clock_input <- function(local) {
@@ -53,12 +54,11 @@ ui <- fluidPage(
   tags$a(class = "skip-link", href = "#workspace", "Skip to results"),
   tags$header(class = "app-header",
     div(class = "brand", span(class = "brand-mark", "n"),
-      div(strong("Nutrient Lab"), span(class = "brand-subtitle", "Interaction research workspace"))),
-    div(class = "header-meta", span(class = "preview-badge", "Research preview"),
-      span("USDA catalog / 477 definitions"))),
+      div(strong("Nutrient Lab"))),
+    div(class = "header-meta", span("477 nutrients"))),
   div(class = "page-intro", div(div(class = "eyebrow", "Explore / compare / understand"),
     h1("A clearer view of nutrient interactions."),
-    p("Connect what you consumed with when you consumed it. Explore the evidence, not assumptions."))),
+    p("Explore your nutrients, amounts and intake times in one place."))),
   div(class = "workspace-grid",
     tags$aside(class = "composer", `aria-label` = "Scenario builder",
       div(class = "section-title", span(class = "step-label", "01"), h2("Build your scenario")),
@@ -84,8 +84,7 @@ ui <- fluidPage(
         textAreaInput("scenario", "Scenario JSON", example_text, height = "260px")),
       div(class = "composer-actions", textOutput("draft_summary"),
         actionButton("analyze", "Analyze scenario", class = "btn-primary"),
-        actionButton("reset", "Restore example", class = "btn-reset")),
-      p(class = "field-hint", "Catalog coverage is not evidence coverage. Most nutrient pairs have no curated interaction evidence.")
+        actionButton("reset", "Restore example", class = "btn-reset"))
     ),
     tags$main(id = "workspace", tabindex = "-1", class = "results-workspace",
       div(class = "workspace-toolbar", div(class = "section-title", span(class = "step-label", "02"), h2("Explore results")),
@@ -97,26 +96,23 @@ ui <- fluidPage(
         id = "analysis_view",
         tabPanel("Timeline", view_heading("Intake timeline", "Every intake in order, with amounts and local consumption times."),
           plotOutput("timeline", height = "340px"), h3("Analyzed intakes"), tableOutput("events")),
-        tabPanel("Interaction map", view_heading("How the nutrients connect", "Directed links show evidence matches, not a combined absorption prediction."),
+        tabPanel("Interaction map", view_heading("How the nutrients connect", "Explore directed connections between your selected nutrients."),
           plotOutput("network", height = "460px"), uiOutput("network_key"),
           p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
         tabPanel("Findings", view_heading("Evidence & applicability", "Inspect each directed pair, including unresolved cases and source citations."), tableOutput("findings")),
         tabPanel("Dose reference", view_heading("Dose in context", "Study observations and the recency of your intakes, kept distinct."),
           plotOutput("curve", height = "360px"), uiOutput("dose_recency"), uiOutput("dose_key"),
-          p(class = "note", "Study observations describe relative iron absorption in wheat-roll experiments. They are not a prediction for your entered meal. Dashed interpolation, when enabled in JSON, is exploratory.")),
-        tabPanel("Sources", view_heading("Trace the evidence", "Review study scope, dose basis and limitations before interpreting a finding."), tableOutput("sources"),
-          p(class = "note", "Abstract-level extraction; formal evidence grading and independent validation are pending. No numerical aggregate or absolute bioavailability is inferred.")),
+          p(class = "note", "Relative iron absorption in wheat-roll experiments. Enable interpolation in scenario JSON to connect the study observations.")),
+        tabPanel("Sources", view_heading("Trace the evidence", "Study scope, dose basis and source details."), tableOutput("sources")),
         tabPanel("USDA catalog", view_heading("The nutrient library", "All 477 definitions from USDA nutrient.csv, April 2026."),
           textInput("catalog_search", "Filter definitions by name, ID or unit", ""),
           textOutput("catalog_count"), tableOutput("catalog_table"),
-          p(class = "note", "First 50 matching definitions are shown. Refine the filter to inspect others. Catalog membership does not imply interaction evidence.")),
-        tabPanel("Food correlations", view_heading("Patterns across foods", "Nutrient co-occurrence is not evidence of absorption effects."), uiOutput("food")),
+          p(class = "note", "First 50 matches shown. Refine the filter to find more.")),
+        tabPanel("Food correlations", view_heading("Your nutrients across foods", "A custom correlation matrix for the nutrients in your analyzed scenario."), uiOutput("food")),
         tabPanel("JSON", view_heading("Structured result", "The same analysis, ready for reproducible workflows and downstream tools."), verbatimTextOutput("json"))
       ))
     )
-  ),
-  tags$footer(class = "app-footer", span("Nutrient Lab / Evidence before inference"),
-    span("Research tool. Not a clinical or personalized nutrition recommendation."))
+  )
 )
 
 server <- function(input, output, session) {
@@ -129,8 +125,8 @@ server <- function(input, output, session) {
   })
   output$nutrient_hint <- renderText({
     req(input$nutrient); selected <- resolve_nutrient(input$nutrient, catalog)
-    paste(selected$name, if (!is.na(selected$id)) paste0("(USDA ", selected$id, ")") else "",
-      "- native unit:", selected$unit_name)
+    paste("Native unit:", selected$canonical_unit,
+      if (!is.na(selected$id)) paste0(" / USDA ", selected$id) else "")
   })
   catalog_filtered <- reactive({
     query <- tolower(trimws(input$catalog_search))
@@ -184,7 +180,7 @@ server <- function(input, output, session) {
     div(class = if (changed) "status status-draft" else "status", role = "status", `aria-live` = "polite",
       strong(if (changed) "Draft changed" else "Analysis ready"),
       span(if (changed) "Analyze to apply your edits. Results and export still reflect the last analyzed scenario."
-        else "Study evidence only. Absolute bioavailability is not estimated."))
+        else "Results match your analyzed scenario."))
   })
   output$metrics <- renderUI({
     req(current()); result <- current()
@@ -222,7 +218,7 @@ server <- function(input, output, session) {
         lapply(rows, function(i) tags$span(
           tags$span(style = paste0("display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;background:", styles$color[i], ";")),
           events$nutrient_name[i]))),
-      p(class = "note", "Dot hue identifies the nutrient. Relative to the latest entered intake, opacity increases from 25% to 100% and color brightness from 45% to 100%. Equal times share both values. These are display settings, not absorption estimates."))
+      p(class = "note", "Hue identifies the nutrient. Recency scales opacity from 25% to 100% and brightness from 45% to 100%, relative to the latest intake."))
   })
   output$network_key <- renderUI(nutrient_key())
   output$dose_key <- renderUI(tagList(nutrient_key(),
@@ -247,18 +243,32 @@ server <- function(input, output, session) {
   output$download <- downloadHandler(filename = function() "nutrient-interactions.json",
     content = function(file) {req(current()); writeLines(result_json(current()), file)},
     contentType = "application/json")
-  output$food <- renderUI({
-    path <- file.path(project_root, "reports", "generated", "food-analysis.json")
-    if (!file.exists(path)) return(p("Run scripts/acquire_kaggle.R and scripts/analyze_foods.R to generate the food analysis."))
-    summary <- jsonlite::fromJSON(path)
-    tagList(p(paste(format(summary$rows, big.mark = ","), "Kaggle food records; nutrient composition per 100 g.")),
-      p(class = "note", "Spearman correlations describe co-occurrence among foods. They do not measure absorption or establish nutrient interactions."),
-      imageOutput("heatmap", height = "600px"))
+  food_raw <- reactive({
+    path <- file.path(project_root, "data-raw", "kaggle-manifest.json")
+    validate(need(file.exists(path), "Food dataset unavailable. Run scripts/acquire_kaggle.R."))
+    manifest <- jsonlite::fromJSON(path)
+    csv <- file.path(project_root, manifest$csv_path)
+    validate(need(file.exists(csv), "Food dataset missing. Run scripts/acquire_kaggle.R."))
+    validate(need(unname(tools::md5sum(csv)) == manifest$csv_md5, "Food dataset checksum mismatch."))
+    utils::read.csv(csv, check.names = FALSE, stringsAsFactors = FALSE)
   })
-  output$heatmap <- renderImage({
-    path <- file.path(project_root, "reports", "generated", "food-correlation.png")
-    req(file.exists(path)); list(src = normalizePath(path), contentType = "image/png", width = "100%")
-  }, deleteFile = FALSE)
+  food_selected <- reactive({req(current()); selected_food_correlations(current()$events, food_raw(), catalog)})
+  output$food <- renderUI({
+    data <- food_selected()
+    tagList(p(paste(length(data$labels), "of", data$selected_count, "selected nutrients available across",
+      format(data$rows, big.mark = ","), "foods / per 100 g / Spearman correlation")),
+      if (length(data$unavailable)) p(class = "note", "Not available in this food dataset: ", paste(data$unavailable, collapse = ", ")),
+      if (length(data$labels) < 2L) p("Add at least two nutrients with food data, then analyze your scenario.")
+      else tagList(plotOutput("food_heatmap", height = paste0(max(500, length(data$labels) * 24), "px")), tableOutput("food_pairs")))
+  })
+  output$food_heatmap <- renderPlot({
+    data <- food_selected(); req(length(data$labels) >= 2L)
+    plot_food_correlations(data)
+  })
+  output$food_pairs <- renderTable({
+    data <- food_selected(); req(length(data$labels) >= 2L)
+    data$pairs
+  }, digits = 3, spacing = "m")
 }
 
 shinyApp(ui, server)

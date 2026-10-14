@@ -17,6 +17,8 @@ jobs:
         run: Rscript tests/run_tests.R
       - name: Dashboard workflow tests
         run: Rscript tests/test_app.R
+      - name: Selected nutrient food correlation tests
+        run: Rscript tests/test_food.R
       - name: Generate demonstration outputs
         run: Rscript scripts/demo.R
       - uses: actions/setup-python@v5

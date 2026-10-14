@@ -35,6 +35,24 @@ code, artwork, logos or stylesheets were copied from the references below.
 
 ## Verification
 
+### Selected-nutrient refinement
+
+The header now shows only Nutrient Lab and the nutrient count. Preview branding,
+workspace subtitle, footer disclaimers and repeated interpretation caveats were
+removed from the interface at the user's request; scientific limitations remain
+in the project documentation and result metadata. Display labels are alphabetical,
+use familiar names for common nutrients and retain distinctions such as IU versus
+RAE. USDA IDs remain in the selected-nutrient hint and the catalog.
+
+Food correlations now use unique nutrients from the last analyzed scenario, not
+the previous fixed five-column image. An explicit 71-measure crosswalk maps USDA
+IDs to Kaggle columns, including source misspellings. Only 100 g serving rows are
+included; mass units convert to the selected measure's native unit and IU remains
+separate. Unsupported measures are listed, not inferred. Pairwise-complete
+Spearman coefficients and sample counts are computed reactively; fewer than three
+complete foods or constant columns yield NA. Input doses and chronology do not
+reweight the underlying food-composition observations. See `tests/test_food.R`.
+
 Run `Rscript tests/run_tests.R` for the engine and plot-style checks and
 `Rscript tests/test_app.R` for Shiny server draft/analysis/error/reset/filter
 regressions. Browser checks cover timed intake entry, draft warning, analysis,
