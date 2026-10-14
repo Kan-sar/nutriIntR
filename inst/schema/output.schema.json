@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nutrientengine:output:1.0.0",
+  "title": "Nutrient interaction evidence result",
+  "type": "object",
+  "required": ["schema_version", "engine_version", "mode", "context", "events", "targets", "interactions", "warnings", "provenance"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "engine_version": {"type": "string"},
+    "mode": {"const": "evidence_explorer"},
+    "context": {"type": "object"},
+    "events": {"type": "array", "minItems": 1},
+    "targets": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["event_id", "evidence_directions", "baseline_bioavailability", "adjusted_bioavailability", "combined_relative_effect"],
+        "properties": {
+          "event_id": {"type": "string"},
+          "evidence_directions": {"type": "array", "items": {"type": "string"}},
+          "baseline_bioavailability": {"type": "null"},
+          "adjusted_bioavailability": {"type": "null"},
+          "combined_relative_effect": {"type": "null"}
+        }
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "target_id", "status", "direction", "source_minus_target_minutes", "study_reference", "citation"],
+        "properties": {
+          "source_id": {"type": "string"},
+          "target_id": {"type": "string"},
+          "status": {"enum": ["unsupported_pair", "unsupported_form", "timing_unresolved", "unsupported_context", "zero_dose", "qualitative_evidence", "within_meal_timing_unresolved"]},
+          "direction": {"enum": ["enhances", "inhibits", "no_detected_effect", "unknown"]},
+          "source_minus_target_minutes": {"type": "number"},
+          "citation": {"type": ["object", "null"]},
+          "study_reference": {
+            "type": ["object", "null"],
+            "properties": {
+              "relative_absorption": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+              "method": {"enum": ["reported_study_anchor", "exploratory_log_dose_interpolation", "not_estimated"]},
+              "lower": {"type": "null"},
+              "upper": {"type": "null"}
+            }
+          }
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "provenance": {"type": "object"}
+  }
+}

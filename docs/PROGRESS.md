@@ -1,0 +1,60 @@
+# Development progress
+
+14 October 2026 — first working increment.
+
+## Completed
+
+- Saved the rubric-based plan with named milestones and eight-week pacing.
+- Created a private GitHub repository and pushed incremental commits.
+- Created an RStudio project and an installable R package.
+- Implemented amount/unit validation, explicit nutrient forms, chronological
+  ordering, unique event IDs, context matching and directed pair findings.
+- Extracted four human-study evidence rules with source PMIDs and limitations.
+- Implemented study-reference phytate dose points and opt-in interpolation.
+- Added JSON input/output schemas, examples and a local HTTP API.
+- Built a Shiny scenario editor with timeline, directed map, evidence findings,
+  source catalog, dose-reference plot, food correlations and JSON download.
+- Acquired Kaggle dataset version 1: 8,789 records, 77 columns, CC0 metadata;
+  recorded provenance/checksums and handled source column typos explicitly.
+- Generated five-nutrient Spearman correlations, pair counts and parsing coverage.
+- Added R regression tests, schema checks, package documentation and CI workflow.
+- Captured R/package dependency versions in renv.
+
+## Verification
+
+Core tests cover input validation, unit equivalence, sorting, unsupported
+forms/populations/contexts, order-sensitive evidence matching, zero doses,
+reported dose anchors, bounded interpolation, JSON serialization and unknowns.
+The local API was exercised with a valid scenario (HTTP 200, four events, twelve
+directed pairs) and invalid input (HTTP 400). The dashboard was exercised by
+adding an event, recalculating, resetting, viewing food correlations and entering
+invalid JSON. Generated plots were visually inspected.
+
+Package and schema validation outcomes are recorded in VALIDATION.md after the
+final check of this increment. CI is configured but its remote result must be
+checked separately from local execution.
+
+RStudio launched, but its project file dialog failed automation with
+`element 485 is not available in cached app state for rstudio.exe` on the recovery
+attempt. Native UI control was stopped according to the computer-use skill's
+recovery rule. Open `nutrient-engine.Rproj` manually; R scripts and the Shiny app
+were exercised through R directly. A hosted Kaggle notebook has not been uploaded
+or executed; acquisition used Kaggle's public API.
+
+## Next milestone: expand and appraise the evidence
+
+1. Retrieve full texts and independently verify nutrient forms, dose ranges,
+   populations, timing protocols, effect definitions and uncertainty.
+2. Expand the source schema to study arms and participant-level outcomes where
+   licensed; retain observed and inferred fields separately.
+3. Add richer context filters and distinguish uncertainty in dose applicability
+   from uncertainty in effect magnitude.
+4. Evaluate calcium, zinc/copper and other planned interactions with evidence
+   conflicts preserved; add new rules only with suitable citations.
+5. Define held-out study validation before fitting a quantitative model.
+
+The current food dataset has no absorption labels. Absorption ML, calibration,
+absolute bioavailability, multi-nutrient combined effects and personalized
+prediction remain pending. They cannot be validated using food correlations.
+Quarto reports and presentation deliverables are planned; the report source is
+present, but final reports and presentations are not complete.

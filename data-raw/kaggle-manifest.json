@@ -1,0 +1,16 @@
+{
+  "slug": "trolukovich/nutritional-values-for-common-foods-and-products",
+  "title": "Nutritional values for common foods and products",
+  "version": 1,
+  "source_url": "https://www.kaggle.com/datasets/trolukovich/nutritional-values-for-common-foods-and-products",
+  "download_url": "https://www.kaggle.com/api/v1/datasets/download/trolukovich/nutritional-values-for-common-foods-and-products?datasetVersionNumber=1",
+  "license": "CC0: Public Domain",
+  "source_updated": "2019-06-18T08:22:51.643Z",
+  "acquired_on": "2026-10-14",
+  "rows": 8789,
+  "columns": 77,
+  "archive_md5": "a20fcd7f83b407bb5b94734df5bd5c9c",
+  "csv_md5": "34be9707c774087a456d5764e00c4a85",
+  "csv_path": "data-raw/downloads/nutrition.csv",
+  "role": "food composition and EDA, not measured human absorption outcomes"
+}

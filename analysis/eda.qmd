@@ -1,0 +1,40 @@
+---
+title: "Food Composition and Interaction Evidence"
+format: html
+execute:
+  echo: true
+---
+
+This report examines nutrient co-occurrence in Kaggle food records and separates
+it from the human-study interaction catalog. Run acquisition and analysis from
+the RStudio project root before rendering. Food data are per 100 g.
+
+```{r}
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+```
+
+```{r}
+manifest <- jsonlite::fromJSON("data-raw/kaggle-manifest.json")
+manifest[c("title", "version", "license", "rows", "columns", "csv_md5")]
+```
+
+```{r}
+read.csv("reports/generated/food-coverage.csv")
+read.csv("reports/generated/food-correlations.csv", row.names = 1)
+read.csv("reports/generated/food-pair-counts.csv", row.names = 1)
+```
+
+```{r}
+knitr::include_graphics("reports/generated/food-correlation.png")
+```
+
+The source spells iron `irom` and zinc `zink`; the cleaning script records their
+mapping explicitly. Unit-bearing values are parsed strictly, with unitless zero
+preserved. All five selected columns parse successfully. A reported zero may
+reflect source reporting limits; absence of missing values does not establish
+measurement completeness.
+
+Correlations describe food records rather than individual intake or absorption.
+Food group, water content and processing can confound the associations. These
+records have no measured absorption outcomes, so absorption ML training and
+predictive accuracy are unavailable in this increment.

@@ -1,0 +1,10 @@
+# Run once after setup to capture and activate the tested project environment.
+required <- c("jsonlite", "shiny", "plumber", "renv", "knitr", "yaml", "rmarkdown")
+source_libraries <- unique(c(.libPaths(), dirname(find.package(required))))
+if (any(!vapply(required, requireNamespace, logical(1), quietly = TRUE)))
+  stop("Run scripts/setup.R first.")
+renv::snapshot(packages = required, prompt = FALSE)
+renv::activate()
+source("renv/activate.R")
+renv::hydrate(packages = required, sources = source_libraries, prompt = FALSE)
+renv::settings$snapshot.type("explicit")

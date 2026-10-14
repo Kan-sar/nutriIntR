@@ -9,5 +9,5 @@ Description: Validates chronological nutrient events, matches a small curated
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.2)
-Imports: jsonlite
-Suggests: shiny, plumber, renv
+Imports: jsonlite, graphics, stats, utils
+Suggests: shiny, plumber, renv, knitr, yaml, rmarkdown

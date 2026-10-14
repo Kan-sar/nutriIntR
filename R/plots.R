@@ -36,7 +36,10 @@ plot_network <- function(result) {
       lty = if (f$status == "qualitative_evidence") 1 else 2)
   }
   graphics::points(x, y, pch = 21, bg = "#163D4F", col = "white", cex = 3)
-  graphics::text(1.23*x, 1.23*y, labels = events$id, cex = .8)
+  for (i in seq_len(n)) {
+    pos <- if (x[i] > .5) 4 else if (x[i] < -.5) 2 else if (y[i] >= 0) 3 else 1
+    graphics::text(x[i], y[i], labels = events$id[i], pos = pos, offset = 1.1, cex = .8)
+  }
   graphics::legend("bottom", c("Enhancing", "Inhibiting", "No detected effect", "Unresolved"),
     col = direction_color(c("enhances", "inhibits", "no_detected_effect", "unknown")),
     lty = 1, bty = "n", cex = .7, horiz = TRUE)

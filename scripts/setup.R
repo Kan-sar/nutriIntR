@@ -1,0 +1,5 @@
+required <- c("jsonlite", "shiny", "plumber", "renv", "knitr", "yaml", "rmarkdown")
+options(timeout = max(300, getOption("timeout")))
+missing <- setdiff(required, rownames(utils::installed.packages()))
+if (length(missing)) utils::install.packages(missing, repos = "https://cloud.r-project.org")
+cat("Dependencies available. Run shiny::runApp('app') from the project root.\n")

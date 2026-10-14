@@ -152,7 +152,7 @@ analyze_interactions <- function(events, context = list(population = "adult", me
     supported <- Filter(function(x) x$status == "qualitative_evidence", incoming)
     directions <- unique(vapply(supported, function(x) x$direction, character(1)))
     list(event_id = events$id[i], nutrient = events$nutrient[i], amount_mg = events$amount_mg[i],
-      evidence_directions = unname(directions), matched_findings = length(supported),
+      evidence_directions = as.list(unname(directions)), matched_findings = length(supported),
       baseline_bioavailability = NULL, adjusted_bioavailability = NULL,
       combined_relative_effect = NULL,
       explanation = "Absolute and combined effects require a validated model; pairwise findings are reported separately.")
