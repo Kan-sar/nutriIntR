@@ -1,9 +1,12 @@
 {
   "context": {"population": "adult", "meal_state": "fed"},
   "events": [
-    {"id": "iron_breakfast", "nutrient": "usda_1089", "form": "non_heme_food", "amount": 6, "unit": "mg", "consumed_at": "08:00", "meal_id": "breakfast"},
+    {"id": "iron_breakfast", "nutrient": "usda_1089", "form": "supplement", "amount": 6, "unit": "mg", "consumed_at": "08:00", "meal_id": "breakfast"},
     {"id": "c_breakfast", "nutrient": "1162", "form": "ascorbic_acid", "amount": 50, "unit": "mg", "consumed_at": "08:00", "meal_id": "breakfast"},
     {"id": "protein_lunch", "nutrient": "usda_1003", "form": "food", "amount": 20, "unit": "g", "consumed_at": "13:30", "meal_id": "lunch"},
     {"id": "vitamin_a_lunch", "nutrient": "usda_1104", "form": "food", "amount": 800, "unit": "IU", "consumed_at": "13:30", "meal_id": "lunch"}
+  ],
+  "medications": [
+    {"id": "ciprofloxacin_morning", "medication": "ciprofloxacin", "route": "oral", "consumed_at": "08:30"}
   ]
 }

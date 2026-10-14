@@ -1,7 +1,7 @@
 Package: nutrientengine
 Type: Package
 Title: Evidence Explorer for Nutrient Interactions
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: person("Kan-sar", role = c("aut", "cre"), email = "67511298+Kan-sar@users.noreply.github.com")
 Description: Validates chronological nutrient events, matches a small curated
     human-study evidence catalog, and returns transparent interaction findings
@@ -9,5 +9,5 @@ Description: Validates chronological nutrient events, matches a small curated
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.2)
-Imports: jsonlite, graphics, grDevices, stats, utils
+Imports: jsonlite, curl, graphics, grDevices, stats, utils
 Suggests: shiny, plumber, renv, knitr, yaml, rmarkdown

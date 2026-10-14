@@ -2,9 +2,14 @@ name: nutrient-engine
 services:
   app:
     build: .
-    image: nutrient-engine:0.2.0
+    image: nutrient-engine:0.3.0
     ports:
       - "127.0.0.1:${APP_PORT:-3838}:3838"
+    environment:
+      NUTRIINT_OLLAMA_URL: "${NUTRIINT_OLLAMA_URL:-http://host.docker.internal:11434}"
+      NUTRIINT_LLM_MODEL: "${NUTRIINT_LLM_MODEL:-deepseek-r1:1.5b}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     init: true
     restart: unless-stopped
     healthcheck:
@@ -15,10 +20,15 @@ services:
       start_period: 20s
   api:
     build: .
-    image: nutrient-engine:0.2.0
+    image: nutrient-engine:0.3.0
     command: ["Rscript", "scripts/serve_api.R"]
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    environment:
+      NUTRIINT_OLLAMA_URL: "${NUTRIINT_OLLAMA_URL:-http://host.docker.internal:11434}"
+      NUTRIINT_LLM_MODEL: "${NUTRIINT_LLM_MODEL:-deepseek-r1:1.5b}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     init: true
     restart: unless-stopped
     healthcheck:

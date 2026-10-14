@@ -5,7 +5,11 @@ chronology through nutrient correlation findings, visualizations and JSON.
 
 Development plan: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-The current dashboard now covers **all 477 nutrient definitions in the USDA food dataset** (April 2026).
+Version 0.3 is a working research preview: an R engine, Shiny dashboard, JSON
+output and localhost API, with nutrient evidence, selected medication-label
+checks and a local explainability layer.
+
+The catalog now covers **all 477 definitions in USDA nutrient.csv** (April 2026).
 Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
 local consumption times; minute-offset input remains available. See
 [catalog coverage and units](docs/USDA_CATALOG.md) and [time/JSON examples](docs/JSON_API.md).
@@ -33,6 +37,21 @@ The image pins R 4.6.1 by base-image digest, restores package versions from
 archive and CSV checksums. It runs all R tests, generates reports and validates
 the JSON contracts during the build. USDA definitions are already bundled.
 Application processes run as a non-root user and ports bind only to localhost.
+
+The AI explanation is optional and runs locally through Ollama. Install Ollama
+on the host and pull the requested model once:
+
+```sh
+ollama pull deepseek-r1:1.5b
+```
+
+The dashboard checks for `deepseek-r1:1.5b` and enables **AI explanation** when
+the model is ready. Docker Compose reaches the host service through
+`host.docker.internal`. Set `NUTRIINT_OLLAMA_URL` or `NUTRIINT_LLM_MODEL` to
+override the endpoint or model. The LLM receives a compact deterministic result;
+it does not select rules or generate interaction findings. Model provenance and
+the observed Ollama artifact ID are recorded in `data-raw/llm-manifest.json`;
+model weights are not committed to Git.
 
 ```sh
 docker compose ps                 # both services should be healthy
@@ -84,7 +103,8 @@ The selected source columns `irom` and `zink` are mapped to iron and zinc.
 ```r
 source("scripts/load_project.R")
 input <- jsonlite::fromJSON("inst/extdata/example.json", simplifyVector = FALSE)
-result <- analyze_interactions(input$events, input$context, input$interpolate)
+result <- analyze_interactions(input$events, input$context, input$interpolate,
+  input$medications)
 cat(result_json(result))
 ```
 
@@ -103,6 +123,12 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
   units. IU, equivalent measures and energy are kept distinct from mass.
 - Four curated evidence rules for vitamin C/iron, calcium supplements/iron,
   phytate/iron, and a specific prior-calcium timing experiment.
+- Eleven selected DailyMed label rules across levothyroxine, ciprofloxacin,
+  doxycycline, warfarin, metformin and carbidopa/levodopa. Timing-aware findings
+  remain distinct from diet-consistency and chronic-monitoring relationships.
+- Optional grounded explanations from DeepSeek-R1-Distill-Qwen-1.5B through a
+  local Ollama endpoint. The prompt includes only deterministic findings,
+  visualization semantics, citations and safety boundaries.
 - Timeline, directed evidence map, phytate study dose curve, source table and
   downloadable JSON. All unsupported directed pairs remain visible in JSON.
 - Interaction map and dose view use grey backgrounds, stable nutrient identity
@@ -113,7 +139,8 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
 - Custom Spearman correlations and pair counts for the nutrients selected in the
   analyzed scenario, using an explicit 71-measure USDA-to-food-data crosswalk.
 
-This is currently an **evidence explorer**. Absolute bioavailability and combined
+This is currently an **evidence explorer**. Medication checks are not prescribing
+or dosage advice. Absolute bioavailability and combined
 effects return `null` because no validated general model has been fitted. A
 study-control absorption ratio is not an individual's absorption fraction.
 Chemical forms, meal conditions and timing change applicability. Unknown evidence
