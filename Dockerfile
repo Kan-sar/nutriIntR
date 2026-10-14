@@ -10,7 +10,8 @@ ENV RENV_PATHS_LIBRARY=/opt/renv/library \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gfortran libcurl4-openssl-dev libssl-dev libsodium-dev \
-    libicu-dev ca-certificates curl pandoc python3 python3-jsonschema \
+    libicu-dev libuv1-dev zlib1g-dev pkg-config \
+    ca-certificates curl pandoc python3 python3-jsonschema \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/nutrient-engine
