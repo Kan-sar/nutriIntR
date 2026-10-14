@@ -1,15 +1,38 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:nutrientengine:output:1.0.0",
+  "$id": "urn:nutrientengine:output:1.1.0",
   "title": "Nutrient interaction evidence result",
   "type": "object",
   "required": ["schema_version", "engine_version", "mode", "context", "events", "targets", "interactions", "warnings", "provenance"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "engine_version": {"type": "string"},
     "mode": {"const": "evidence_explorer"},
     "context": {"type": "object"},
-    "events": {"type": "array", "minItems": 1},
+    "chronology": {
+      "type": "object", "required": ["mode", "origin_local"],
+      "properties": {
+        "mode": {"enum": ["minute_offsets", "consumption_times"]},
+        "origin_local": {"type": ["string", "null"]}
+      }
+    },
+    "events": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["usda_nutrient_id", "nutrient_name", "canonical_unit", "amount_canonical", "amount_mg", "consumed_at", "consumed_at_local", "time_minutes"],
+        "properties": {
+          "usda_nutrient_id": {"type": ["integer", "null"]},
+          "nutrient_name": {"type": "string"},
+          "canonical_unit": {"type": "string"},
+          "amount_canonical": {"type": "number", "minimum": 0},
+          "amount_mg": {"type": ["number", "null"], "minimum": 0},
+          "consumed_at": {"type": ["string", "null"]},
+          "consumed_at_local": {"type": ["string", "null"]},
+          "time_minutes": {"type": "number", "minimum": 0}
+        }
+      }
+    },
     "targets": {
       "type": "array", "minItems": 1,
       "items": {

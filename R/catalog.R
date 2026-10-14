@@ -29,6 +29,8 @@ nutrient_catalog <- function() {
   catalog$default_form[catalog$id %in% c(1162L, 1163L)] <- "ascorbic_acid"
   catalog$default_form[catalog$id == 1042L] <- "phytic_acid"
   catalog$origin <- "USDA"
+  catalog$definition_status <- ifelse(grepl("Archived|DO NOT USE", catalog$name, ignore.case = TRUE),
+    "archived_in_source", "listed")
   rownames(catalog) <- NULL
   catalog
 }
@@ -48,7 +50,7 @@ resolve_nutrient <- function(value, catalog) {
   data.frame(id = NA_integer_, name = if (compact == "phytate") "Phytate phosphorus (study extension)" else value,
     unit_name = "MG", nutrient_nbr = NA_character_, rank = NA_real_, key = compact,
     canonical_unit = "mg", unit_family = "mass", evidence_key = compact,
-    default_form = "unspecified", origin = "extension", stringsAsFactors = FALSE)
+    default_form = "unspecified", origin = "extension", definition_status = "extension", stringsAsFactors = FALSE)
 }
 
 nutrient_units <- function(unit, family) {

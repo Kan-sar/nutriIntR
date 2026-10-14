@@ -5,9 +5,14 @@ chronology through source-backed absorption findings, visualizations and JSON.
 
 Development plan: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-Version 0.1 is a working research preview: an R engine, Shiny dashboard, JSON
+Version 0.2 is a working research preview: an R engine, Shiny dashboard, JSON
 output and localhost API, with a small human-study evidence catalog and a
 reproducible Kaggle food-composition analysis.
+
+The catalog now covers **all 477 definitions in USDA nutrient.csv** (April 2026).
+Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
+local consumption times; minute-offset input remains available. See
+[catalog coverage and units](docs/USDA_CATALOG.md) and [time/JSON examples](docs/JSON_API.md).
 
 ## Run in RStudio
 
@@ -46,11 +51,16 @@ cat(result_json(result))
 Start the local API with `source("scripts/serve_api.R")`. It exposes `GET /health`
 and `POST /analyze` at `http://127.0.0.1:8000`. See [JSON/API contract](docs/JSON_API.md)
 and schemas in `inst/schema/`.
+`GET /nutrients` returns the complete USDA dictionary. Reproduce the bundled
+source with `source("scripts/acquire_usda.R")`; its provenance is committed in
+`data-raw/usda-manifest.json`.
 
 ## What the first version supports
 
 - Unique nutrient events with original and normalized quantities, forms, meal IDs
-  and times; deterministic chronological ordering.
+  and times; deterministic chronological ordering from timestamps or elapsed minutes.
+- Every USDA dictionary entry, with stable IDs, searchable selection and native
+  units. IU, equivalent measures and energy are kept distinct from mass.
 - Four curated evidence rules for vitamin C/iron, calcium supplements/iron,
   phytate/iron, and a specific prior-calcium timing experiment.
 - Timeline, directed evidence map, phytate study dose curve, source table and
@@ -77,7 +87,7 @@ Rscript tests/run_tests.R
 Rscript scripts/demo.R
 python tests/validate_schemas.py
 R CMD build .
-R CMD check --no-manual nutrientengine_0.1.0.tar.gz
+R CMD check --no-manual nutrientengine_0.2.0.tar.gz
 ```
 
 Schema checks require Python `jsonschema` (`python -m pip install jsonschema`).

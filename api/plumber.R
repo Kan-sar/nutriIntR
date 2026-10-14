@@ -6,7 +6,12 @@ engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
 #* Service status
 #* @get /health
 #* @serializer unboxedJSON
-function() list(status = "ok", engine_version = "0.1.0", mode = "evidence_explorer")
+function() list(status = "ok", engine_version = "0.2.0", mode = "evidence_explorer", usda_definitions = nrow(nutrient_catalog()))
+
+#* Complete USDA nutrient dictionary
+#* @get /nutrients
+#* @serializer unboxedJSON
+function() list(release = "2026-04-30", count = nrow(nutrient_catalog()), nutrients = nutrient_catalog())
 
 #* Analyze nutrient events with explicit context
 #* @post /analyze

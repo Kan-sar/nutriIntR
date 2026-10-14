@@ -56,4 +56,60 @@ check(length(analyze_interactions(events[1, ])$interactions) == 0L, "single even
 check(fails(analyze_interactions(events, interpolate = NA)), "invalid interpolation flag rejected")
 check(fails(analyze_interactions(events, context = list())), "missing context rejected")
 check(fails(analyze_interactions(events[rep(1, 101), ])), "event count capped")
+catalog <- nutrient_catalog()
+check(nrow(catalog) == 477L && !anyDuplicated(catalog$id), "all 477 unique USDA definitions bundled")
+check(unname(tools::md5sum(engine_file("nutrient.csv"))) == jsonlite::fromJSON("data-raw/usda-manifest.json")$csv_md5,
+  "USDA snapshot matches source manifest checksum")
+all_events <- data.frame(id = paste0("event_", catalog$id), nutrient = paste0("usda_", catalog$id),
+  form = catalog$default_form, amount = 1, unit = catalog$unit_name, time_minutes = 0, meal_id = "meal")
+for (rows in split(seq_len(nrow(all_events)), ceiling(seq_len(nrow(all_events)) / 100))) {
+  all_normalized <- normalize_events(all_events[rows, ])
+  expected <- all_events[rows, ]; expected <- expected[order(expected$id, method = "radix"), ]
+  check(identical(all_normalized$usda_nutrient_id, as.integer(sub("usda_", "", expected$nutrient))),
+    paste("USDA IDs and native units round trip, batch", ceiling(rows[1] / 100)))
+  check(all(all_normalized$amount_canonical == 1), "all native-unit values preserved")
+}
+usda_event <- function(id, amount = 1, unit = NULL) {
+  row <- catalog[catalog$id == id, ]
+  data.frame(id = paste0("test_", id), nutrient = paste0("usda_", id), form = row$default_form,
+    amount = amount, unit = if (is.null(unit)) row$unit_name else unit, time_minutes = 0, meal_id = "meal")
+}
+check(normalize_events(usda_event(1003, 2))$amount_mg == 2000, "protein g converted to mass correctly")
+check(normalize_events(usda_event(1008, 4.184, "kJ"))$amount_canonical == 1, "kJ to kcal conversion")
+check(normalize_events(usda_event(1062, 1, "kcal"))$amount_canonical == 4.184, "kcal to kJ conversion")
+check(is.na(normalize_events(usda_event(1104, 800))$amount_mg), "IU never treated as mg")
+check(fails(normalize_events(usda_event(1104, 1, "mg"))), "IU-to-mass inference rejected")
+check(fails(normalize_events(usda_event(1008, 1, "g"))), "energy-to-mass conversion rejected")
+bad <- usda_event(1008); bad$nutrient <- "Energy"
+check(fails(normalize_events(bad)), "duplicate USDA names require IDs")
+bad <- usda_event(1089); bad$nutrient <- "Iron, Fe"
+check(normalize_events(bad)$usda_nutrient_id == 1089L, "exact USDA name resolution")
+bad <- usda_event(1042)
+check(normalize_events(bad)$nutrient != "phytate", "phytic acid distinct from phytate phosphorus")
+for (id in catalog$id[!catalog$unit_family %in% c("mass", "energy")]) {
+  check(is.na(normalize_events(usda_event(id))$amount_mg), paste("special unit retained without mass inference", id))
+}
+clock <- jsonlite::fromJSON("inst/extdata/example-clock.json", simplifyVector = FALSE)
+clock_result <- analyze_interactions(clock$events, clock$context)
+check(clock_result$chronology$mode == "consumption_times", "clock chronology enabled")
+check(identical(clock_result$events$time_minutes, c(0, 0, 330, 330)), "actual consumption times derive chronological gaps")
+check(clock_result$events$consumed_at_local[1] == "08:00:00", "selected local time retained")
+check(identical(result_json(clock_result), result_json(analyze_interactions(rev(clock$events), clock$context))),
+  "timestamp sorting independent of input order")
+check(all(vapply(Filter(function(f) f$target_nutrient == "usda_1104", clock_result$interactions),
+  function(f) f$status == "unsupported_pair", logical(1))), "new USDA pairs explicitly unknown")
+check(is.null(jsonlite::fromJSON(result_json(clock_result), simplifyVector = FALSE)$events[[4]]$amount_mg),
+  "non-mass amounts serialize to JSON null")
+check(parse_consumed_at("08:00") == parse_consumed_at("08:00:00"), "HH:MM and HH:MM:SS agree")
+check(diff(parse_consumed_at(c("2026-10-14T23:50:00", "2026-10-15T00:10:00"))) == 1200,
+  "dated local times support midnight crossings")
+check(fails(parse_consumed_at("2026-02-30T12:00:00")), "invalid calendar day rejected")
+check(fails(parse_consumed_at("25:00")), "invalid clock time rejected")
+check(fails(parse_consumed_at("12:60")), "invalid minute rejected")
+check(fails(parse_consumed_at(c("08:00", "2026-10-14T08:00"))), "mixed dated and undated clocks rejected")
+mixed <- clock$events; mixed[[1]]$consumed_at <- NULL; mixed[[1]]$time_minutes <- 0
+check(fails(analyze_interactions(mixed)), "mixed absolute and relative times rejected")
+provided <- clock$events; provided[[1]]$time_minutes <- 999
+check(identical(clock_result$events$time_minutes, analyze_interactions(provided)$events$time_minutes),
+  "timestamps authoritative over stale offsets")
 cat("\n", checks, "checks passed.\n")

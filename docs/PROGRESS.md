@@ -2,6 +2,26 @@
 
 14 October 2026 — first working increment.
 
+## USDA and consumption-time extension (version 0.2)
+
+- Bundled all 477 definitions from USDA's April 2026 `nutrient.csv`, preserving
+  source IDs/names/units and a reproducible download manifest.
+- Added searchable USDA selection, a filterable catalog tab and `GET /nutrients`.
+- Added mass and energy normalization while retaining IU and other specialized
+  measures. USDA phytic acid stays distinct from the phytate phosphorus extension.
+- Added a native hours/minutes **Time consumed** widget. Inputs and JSON use local
+  clock values without timezone conversion. Existing minute offsets remain usable.
+- Added local-time chronology and clock labels on the timeline. Time-only values
+  refer to the same day; dated local JSON inputs support overnight scenarios.
+- Added USDA identity, units, consumption time and catalog provenance to output,
+  and extended the JSON schemas to version 1.1.0.
+- Expanded regression coverage to 77 checks, including every USDA definition's
+  native-unit round trip. Both offset and local-clock JSON examples validate.
+
+Full catalog coverage does not expand the scientific evidence automatically.
+New unsupported pairs still return unknown findings; absolute predictions remain
+pending the validation work below.
+
 ## Completed
 
 - Saved the rubric-based plan with named milestones and eight-week pacing.

@@ -3,7 +3,46 @@ project_root <- if (file.exists("scripts/load_project.R")) "." else ".."
 for (file in list.files(file.path(project_root, "R"), pattern = "\\.R$", full.names = TRUE)) source(file, local = TRUE)
 # Development source lookup is relative to the app working directory.
 engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
-example_text <- paste(readLines(engine_file("example.json")), collapse = "\n")
+example_text <- paste(readLines(engine_file("example-clock.json")), collapse = "\n")
+catalog <- nutrient_catalog()
+nutrient_choices <- stats::setNames(catalog$key,
+  paste0(catalog$name, " | USDA ", catalog$id, " | ", catalog$unit_name))
+nutrient_choices <- c(nutrient_choices, "Phytate phosphorus | study extension | mg" = "phytate")
+clock_default <- "08:00"
+
+clock_input <- function(local) {
+  if (is.null(local) || !nzchar(local)) local <- clock_default
+  parse_consumed_at(local)
+  local
+}
+
+prepare_timing <- function(payload, mode, origin) {
+  if (!length(payload$events)) return(payload)
+  if (mode == "clock") {
+    has_clock <- vapply(payload$events, function(e) !is.null(e$consumed_at) && nzchar(e$consumed_at), logical(1))
+    if (all(has_clock)) return(payload)
+    if (any(has_clock)) stop("Mixed consumption timestamps and offsets: supply a timestamp for every event.")
+    base <- parse_consumed_at(origin)
+    payload$events <- lapply(payload$events, function(e) {
+      if (is.null(e$time_minutes) || !is.numeric(e$time_minutes) || !is.finite(e$time_minutes) || e$time_minutes < 0)
+        stop("Every offset event requires nonnegative time_minutes.")
+      seconds <- base + e$time_minutes * 60
+      if (seconds >= 86400 || seconds %% 1 != 0)
+        stop("Time-only conversion requires same-day, whole-second values. Use dated local times in JSON for overnight scenarios.")
+      e$consumed_at <- format_local_time(seconds)
+      e$time_minutes <- NULL
+      e
+    })
+  } else {
+    normalized <- normalize_events(payload$events)
+    payload$events <- lapply(payload$events, function(e) {
+      e$time_minutes <- normalized$time_minutes[match(e$id, normalized$id)]
+      e$consumed_at <- NULL
+      e
+    })
+  }
+  payload
+}
 
 ui <- fluidPage(
   tags$head(tags$style(HTML("
@@ -28,19 +67,27 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(width = 4,
       h4("Build a scenario"),
-      selectInput("nutrient", "Nutrient", c("iron", "vitamin_c", "calcium", "phytate", "zinc", "copper")),
-      selectInput("form", "Chemical form", "non_heme_food"),
+      selectizeInput("nutrient", "Nutrient — search name or USDA ID", nutrient_choices, selected = "iron"),
+      textOutput("nutrient_hint"),
+      selectInput("form", "Chemical form", nutrient_forms("iron")),
       fluidRow(column(6, numericInput("amount", "Amount", 6, min = 0)),
                column(6, selectInput("unit", "Unit", c("mg", "g", "mcg")))),
-      fluidRow(column(6, numericInput("minute", "Minute", 0, min = 0)),
-               column(6, textInput("meal", "Meal ID", "lunch"))),
+      radioButtons("timing_mode", "When was it consumed?", c("Time consumed" = "clock", "Minutes from scenario start" = "offset"), selected = "clock"),
+      conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", 0, min = 0)),
+      conditionalPanel("input.timing_mode == 'clock'",
+        tags$div(class = "form-group", tags$label(`for` = "consumed_time", "Time consumed"),
+          tags$input(id = "consumed_time", type = "time", class = "form-control",
+            value = clock_default, step = "60",
+            onchange = "Shiny.setInputValue('consumed_time', this.value, {priority:'event'});")),
+        p(class = "note", "Select the time on the clock. Times in one scenario refer to the same day.")),
+      textInput("meal", "Meal ID", "lunch"),
       actionButton("add", "Add event to draft"),
       hr(),
       textAreaInput("scenario", "Scenario JSON", example_text, height = "260px"),
       actionButton("analyze", "Analyze scenario", class = "btn-primary"),
       actionButton("reset", "Reset example"),
       br(), br(), downloadButton("download", "Download result JSON"),
-      p(class = "note", "Amounts for minerals are elemental amounts. The phytate reference uses mg phytate phosphorus. Edit the JSON to remove events or change the population, meal state or interpolation option.")
+      p(class = "note", "477 USDA definitions are available. Use each measure's native unit; activity units and equivalents are retained. Most pairs do not yet have curated interaction evidence. Edit JSON to remove events or change context.")
     ),
     mainPanel(width = 8,
       uiOutput("status"),
@@ -53,6 +100,10 @@ ui <- fluidPage(
           p(class = "note", "Study observations describe relative iron absorption in wheat-roll experiments. They are not a prediction for your entered meal. Dashed interpolation, when enabled in JSON, is exploratory.")),
         tabPanel("Sources", tableOutput("sources"),
           p(class = "note", "Abstract-level extraction; formal evidence grading and independent validation are pending. No numerical aggregate or absolute bioavailability is inferred.")),
+        tabPanel("USDA catalog", p("All 477 definitions from USDA nutrient.csv, April 2026."),
+          textInput("catalog_search", "Filter definitions by name, ID or unit", ""),
+          textOutput("catalog_count"), tableOutput("catalog_table"),
+          p(class = "note", "First 50 matching definitions are shown. Refine the filter to inspect others. Catalog membership does not imply interaction evidence.")),
         tabPanel("Food correlations", uiOutput("food")),
         tabPanel("JSON", verbatimTextOutput("json"))
       )
@@ -61,12 +112,24 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  forms <- list(iron = c("non_heme_food", "ferrous_sulfate", "heme"),
-    vitamin_c = c("ascorbic_acid", "food"),
-    calcium = c("food", "calcium_carbonate", "calcium_citrate", "calcium_phosphate"),
-    phytate = c("sodium_phytate_phosphorus", "phytic_acid"),
-    zinc = "elemental", copper = "elemental")
-  observeEvent(input$nutrient, updateSelectInput(session, "form", choices = forms[[input$nutrient]]))
+  observeEvent(input$nutrient, {
+    selected <- resolve_nutrient(input$nutrient, catalog)
+    forms <- nutrient_forms(selected$key, selected$default_form)
+    updateSelectInput(session, "form", choices = forms, selected = forms[1])
+    updateSelectInput(session, "unit", choices = nutrient_units(selected$canonical_unit, selected$unit_family),
+      selected = selected$canonical_unit)
+  })
+  output$nutrient_hint <- renderText({
+    req(input$nutrient); selected <- resolve_nutrient(input$nutrient, catalog)
+    paste(selected$name, if (!is.na(selected$id)) paste0("(USDA ", selected$id, ")") else "",
+      "- native unit:", selected$unit_name)
+  })
+  catalog_filtered <- reactive({
+    query <- tolower(trimws(input$catalog_search))
+    catalog[grepl(query, tolower(paste(catalog$id, catalog$name, catalog$unit_name)), fixed = TRUE), ]
+  })
+  output$catalog_count <- renderText(paste(nrow(catalog_filtered()), "of", nrow(catalog), "definitions match."))
+  output$catalog_table <- renderTable(utils::head(catalog_filtered()[, c("id", "name", "unit_name", "nutrient_nbr", "definition_status")], 50))
   current <- reactiveVal(NULL)
   error <- reactiveVal(NULL)
   run <- function(text) {
@@ -87,10 +150,14 @@ server <- function(input, output, session) {
       existing <- vapply(payload$events, function(e) e$id, character(1))
       index <- length(existing) + 1L
       while (paste0("event_", index) %in% existing) index <- index + 1L
+      origin <- if (input$timing_mode == "clock") clock_input(input$consumed_time) else NULL
+      payload <- prepare_timing(payload, input$timing_mode, origin)
       event <- list(id = paste0("event_", index), nutrient = input$nutrient,
         form = input$form, amount = input$amount, unit = input$unit,
-        time_minutes = input$minute, meal_id = input$meal)
+        meal_id = input$meal)
+      if (input$timing_mode == "clock") event$consumed_at <- origin else event$time_minutes <- input$minute
       payload$events <- append(payload$events, list(event))
+      normalize_events(payload$events)
       updateTextAreaInput(session, "scenario", value = as.character(result_json(payload)))
       showNotification("Added to draft. Click Analyze scenario to refresh results.", type = "message")
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
@@ -105,7 +172,7 @@ server <- function(input, output, session) {
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
   output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate)})
-  output$events <- renderTable({req(current()); current()$events})
+  output$events <- renderTable({req(current()); current()$events[, c("id", "consumed_at", "nutrient_name", "amount", "unit", "usda_nutrient_id", "time_minutes", "meal_id")]})
   output$findings <- renderTable({
     req(current()); findings <- current()$interactions
     if (!length(findings)) return(data.frame(message = "Add another event to explore interactions."))

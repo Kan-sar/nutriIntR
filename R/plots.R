@@ -11,10 +11,20 @@ plot_timeline <- function(result) {
   y <- rev(seq_len(nrow(events)))
   span <- range(events$time_minutes)
   if (diff(span) == 0) span <- span + c(-10, 10)
+  clock <- !is.null(result$chronology$origin_local)
   graphics::plot(events$time_minutes, y, pch = 21, bg = "#129B88", col = "#129B88",
-    cex = 1.6, yaxt = "n", ylab = "", xlab = "Minutes from scenario start",
+    cex = 1.6, yaxt = "n", xaxt = if (clock) "n" else "s", ylab = "",
+    xlab = if (clock) "Time consumed" else "Minutes from scenario start",
     xlim = span + c(-1, 1) * diff(span) * .1, ylim = c(.4, nrow(events) + .6),
     main = "Chronology of intake events", bty = "n")
+  if (clock) {
+    ticks <- pretty(span, n = 5)
+    tick_time <- parse_consumed_at(result$chronology$origin_local) + ticks * 60
+    labels <- format_local_time(tick_time, grepl("T", result$chronology$origin_local, fixed = TRUE))
+    labels <- gsub("T", "\n", sub(":[0-9]{2}$", "", labels), fixed = TRUE)
+    graphics::axis(1, at = ticks, labels = labels, cex.axis = .8)
+    graphics::mtext("Local clock times", side = 3, cex = .65)
+  }
   graphics::axis(2, at = y, labels = paste(events$id, events$amount, events$unit), las = 1, cex.axis = .8)
   graphics::abline(v = unique(events$time_minutes), col = "#E7EDF1", lty = 3)
   graphics::points(events$time_minutes, y, pch = 21, bg = "#129B88", col = "#129B88", cex = 1.6)

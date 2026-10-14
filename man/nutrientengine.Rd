@@ -2,6 +2,7 @@
 \alias{analyze_interactions}
 \alias{normalize_events}
 \alias{read_evidence}
+\alias{nutrient_catalog}
 \alias{result_json}
 \alias{phytate_reference}
 \alias{plot_timeline}
@@ -14,6 +15,7 @@ and JSON without inventing absolute bioavailability.}
 \usage{
 normalize_events(events)
 read_evidence()
+nutrient_catalog()
 phytate_reference(amount_mg, interpolate = FALSE)
 analyze_interactions(events,
   context = list(population = "adult", meal_state = "fed"),
@@ -25,7 +27,8 @@ plot_phytate_curve(interpolate = FALSE)
 }
 \arguments{
   \item{events}{Data frame or list of event objects with id, nutrient, form,
-    amount, unit, time_minutes and meal_id. Between 1 and 100 events.}
+    amount, unit and meal_id. Supply time_minutes or a local HH:MM
+    consumed_at timestamp for every event. Between 1 and 100 events.}
   \item{context}{List with scalar population and meal_state strings. Catalog
     findings currently cover adult fed context.}
   \item{amount_mg}{Finite nonnegative phytate phosphorus mass in mg.}
@@ -34,10 +37,14 @@ plot_phytate_curve(interpolate = FALSE)
   \item{result}{Result of analyze_interactions.}
   \item{pretty}{Whether to indent JSON output.}
 }
-\value{normalize_events returns a sorted data frame; read_evidence a data frame;
+\value{normalize_events returns a sorted data frame; read_evidence and
+nutrient_catalog return data frames;
 phytate_reference a reference list; analyze_interactions a structured result list;
 result_json a JSON string. Plot functions draw to the current graphics device.}
-\details{Phytate anchors describe wheat-roll experiments, not individual predicted
+\details{The complete USDA nutrient.csv dictionary is bundled with stable IDs
+and native units. Mass, energy, activity and specialized equivalent measures remain
+distinct. Unknown interactions return unknown findings. Original consumed_at
+times are retained; ordering and time gaps use local clock values. Phytate anchors describe wheat-roll experiments, not individual predicted
 absorption. Nonzero within-meal gaps remain unresolved. Missing evidence does not
 mean no biological interaction. Refer to the project methodology and source PMIDs
 for limitations.}
