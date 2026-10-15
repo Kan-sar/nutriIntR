@@ -5,7 +5,6 @@ normalize_unit <- function(unit) {
   unit
 }
 
-# USDA IDs, rather than nutrient names, disambiguate distinct measures.
 nutrient_catalog <- function() {
   catalog <- utils::read.csv(engine_file("nutrient.csv"), stringsAsFactors = FALSE,
     colClasses = "character")
@@ -20,7 +19,7 @@ nutrient_catalog <- function() {
   catalog$unit_family <- ifelse(catalog$canonical_unit %in% c("g", "mg", "ug"), "mass",
     ifelse(catalog$canonical_unit %in% c("kcal", "kj"), "energy", "native_measure"))
   catalog$evidence_key <- catalog$key
-  # Explicit subtypes still require the user's supported form to match evidence.
+
   catalog$evidence_key[catalog$id %in% c(1141L, 1142L)] <- "iron"
   catalog$evidence_key[catalog$id == 1163L] <- "vitamin_c"
   catalog$default_form <- "unspecified"
@@ -46,7 +45,7 @@ resolve_nutrient <- function(value, catalog) {
   if (!length(found)) found <- which(tolower(catalog$name) == key)
   if (length(found) > 1L) stop("Ambiguous USDA nutrient name: ", value, ". Select its USDA ID.")
   if (length(found)) return(catalog[found, , drop = FALSE])
-  # Keep the original phosphorus-basis study input distinct from USDA phytic acid.
+
   data.frame(id = NA_integer_, name = if (compact == "phytate") "Phytate phosphorus (study extension)" else value,
     unit_name = "MG", nutrient_nbr = NA_character_, rank = NA_real_, key = compact,
     canonical_unit = "mg", unit_family = "mass", evidence_key = compact,
