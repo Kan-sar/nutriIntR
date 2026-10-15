@@ -1,7 +1,6 @@
 library(shiny)
 project_root <- if (file.exists("scripts/load_project.R")) "." else ".."
 for (file in list.files(file.path(project_root, "R"), pattern = "\\.R$", full.names = TRUE)) source(file, local = TRUE)
-# Development source lookup is relative to the app working directory.
 engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
 example_text <- paste(readLines(engine_file("example-clock.json")), collapse = "\n")
 catalog <- nutrient_catalog()
