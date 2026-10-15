@@ -123,11 +123,13 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
   units. IU, equivalent measures and energy are kept distinct from mass.
 - Four curated evidence rules for vitamin C/iron, calcium supplements/iron,
   phytate/iron, and a specific prior-calcium timing experiment.
-- Eleven selected DailyMed label rules across levothyroxine, ciprofloxacin,
-  doxycycline, warfarin, metformin and carbidopa/levodopa. Timing-aware findings
+- Sixteen commonly used medicines in a dedicated catalog, including paracetamol
+  (acetaminophen), ibuprofen, aspirin, amoxicillin, azithromycin, omeprazole,
+  lisinopril, atorvastatin, amlodipine and cetirizine. Fourteen selected DailyMed
+  nutrient rules cover the supported evidence subset. Timing-aware findings
   remain distinct from diet-consistency and chronic-monitoring relationships.
-- Three selected DailyMed drug–drug label rules for ciprofloxacin/warfarin,
-  doxycycline/warfarin and levothyroxine/warfarin. Every selected drug pair is
+- Eight selected DailyMed drug–drug label rules, including acetaminophen,
+  ibuprofen, aspirin, omeprazole and azithromycin with warfarin. Every selected drug pair is
   returned; uncataloged pairs remain explicitly unknown rather than being labeled safe.
 - Optional grounded explanations from DeepSeek-R1-Distill-Qwen-1.5B through a
   local Ollama endpoint. The prompt includes only deterministic findings,

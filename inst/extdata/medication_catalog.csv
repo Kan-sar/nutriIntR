@@ -1,0 +1,17 @@
+key,name,aliases
+acetaminophen,Acetaminophen (paracetamol),paracetamol|tylenol
+amlodipine,Amlodipine,norvasc
+amoxicillin,Amoxicillin,amoxil
+aspirin,Aspirin,acetylsalicylic_acid|asa
+atorvastatin,Atorvastatin,lipitor
+azithromycin,Azithromycin,zithromax|z_pak
+carbidopa_levodopa,Carbidopa and levodopa,sinemet|levodopa_carbidopa
+cetirizine,Cetirizine,zyrtec
+ciprofloxacin,Ciprofloxacin,cipro
+doxycycline,Doxycycline,doxycycline_hyclate|vibramycin
+ibuprofen,Ibuprofen,advil|motrin
+levothyroxine,Levothyroxine,thyroxine|synthroid
+lisinopril,Lisinopril,zestril|prinivil
+metformin,Metformin,metformin_hydrochloride|glucophage
+omeprazole,Omeprazole,prilosec
+warfarin,Warfarin,coumadin|jantoven

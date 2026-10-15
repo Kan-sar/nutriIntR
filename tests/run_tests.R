@@ -117,6 +117,20 @@ check(cipro_warfarin$status == "label_monitoring_interaction",
   "drug-drug label monitoring status applied")
 check(cipro_warfarin$time_gap_minutes == 15,
   "drug-drug chronology shares the scenario clock")
+analgesic_medications <- append(clock$medications, list(list(id = "paracetamol_dose",
+  medication = "paracetamol", route = "oral", consumed_at = "09:00")))
+analgesic_result <- analyze_interactions(clock$events, clock$context,
+  medications = analgesic_medications)
+check(resolve_medication("paracetamol")$key == "acetaminophen",
+  "paracetamol alias resolves to acetaminophen")
+check(drug_find(analgesic_result, "paracetamol_dose", "warfarin_morning")$rule_id ==
+  "acetaminophen_warfarin", "acetaminophen and warfarin rule matched")
+potassium_event <- usda_event(1092, 500, "mg")
+lisinopril <- list(list(id = "lisinopril_dose", medication = "lisinopril",
+  route = "oral", time_minutes = 0))
+lisinopril_result <- analyze_interactions(potassium_event, medications = lisinopril)
+check(med_find(lisinopril_result, "lisinopril_dose", "test_1092")$rule_id ==
+  "lisinopril_potassium", "lisinopril and potassium supplement rule matched")
 separated_medication <- clock$medications
 separated_medication[[1]]$consumed_at <- "14:30"
 separated_result <- analyze_interactions(clock$events, clock$context, medications = separated_medication)
@@ -129,9 +143,9 @@ check(med_find(thyroid_result, "thyroid", "iron_breakfast")$status == "potential
 nonoral <- levothyroxine; nonoral[[1]]$route <- "intravenous"
 check(med_find(analyze_interactions(clock$events, clock$context, medications = nonoral),
   "thyroid", "iron_breakfast")$status == "unsupported_route", "non-oral route is not generalized")
-check(nrow(medication_catalog()) == 6L && nrow(read_medication_evidence()) == 11L,
-  "selected medication catalog and label rules loaded")
-check(nrow(read_drug_evidence()) == 3L, "selected drug-drug label rules loaded")
+check(nrow(medication_catalog()) == 16L && nrow(read_medication_evidence()) == 14L,
+  "expanded medication catalog and label rules loaded")
+check(nrow(read_drug_evidence()) == 8L, "expanded drug-drug label rules loaded")
 payload <- explainability_payload(clock_result)
 check(length(payload$medication_findings) == 1L &&
   payload$medication_findings[[1]]$rule_id == "ciprofloxacin_iron",

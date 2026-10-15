@@ -33,7 +33,9 @@ No detected effect is not proof that the effect is zero.
 
 ## Medication and nutrient rules
 
-The medication catalog contains 11 selected rules for six medicines. Each rule
+The medication catalog contains 16 commonly used medicines independently of rule
+coverage. Fourteen selected nutrient rules and eight selected drug–drug rules are
+drawn from cited DailyMed labels. Each rule
 records a normalized medication and nutrient, covered nutrient forms, interaction
 direction, timing scope, mechanism, plain-language guidance, limitation and a
 DailyMed label URL reviewed on 15 October 2026. The engine applies label timing

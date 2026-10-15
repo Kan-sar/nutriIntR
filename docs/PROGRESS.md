@@ -18,6 +18,16 @@
 - Updated JSON schemas to 1.2.0 and added medication chronology, route, alias,
   separation-window, grounding-payload and reasoning-tag regression checks.
 
+## Common-drug catalog extension (version 0.4)
+
+- Separated drug discovery from evidence coverage and expanded the dropdown from
+  six to 16 commonly used medicines. Paracetamol resolves to the canonical
+  acetaminophen entry; drugs without a curated rule remain explicitly uncataloged.
+- Added DailyMed-backed nutrient rules for lisinopril with potassium supplements
+  and long-term omeprazole relationships with magnesium and vitamin B12.
+- Added selected warfarin interaction rules for acetaminophen, ibuprofen, aspirin,
+  omeprazole and azithromycin, preserving label limitations and monitoring scope.
+
 ## USDA and consumption-time extension (version 0.2)
 
 - Bundled all 477 definitions from USDA's April 2026 `nutrient.csv`, preserving

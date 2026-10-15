@@ -12,13 +12,15 @@ read_drug_evidence <- function() {
 }
 
 medication_catalog <- function() {
-  rules <- read_medication_evidence()
-  keys <- unique(rules$medication_key)
-  do.call(rbind, lapply(keys, function(key) {
-    rows <- rules[rules$medication_key == key, , drop = FALSE]
-    data.frame(key = key, name = rows$medication_name[1], aliases = rows$aliases[1],
-      rule_count = nrow(rows), stringsAsFactors = FALSE)
-  }))
+  catalog <- utils::read.csv(engine_file("medication_catalog.csv"),
+    stringsAsFactors = FALSE, na.strings = c("", "NA"))
+  nutrient_rules <- read_medication_evidence()
+  drug_rules <- read_drug_evidence()
+  catalog$rule_count <- vapply(catalog$key, function(key) {
+    sum(nutrient_rules$medication_key == key) +
+      sum(drug_rules$drug_a_key == key | drug_rules$drug_b_key == key)
+  }, integer(1))
+  catalog
 }
 
 resolve_medication <- function(value) {
