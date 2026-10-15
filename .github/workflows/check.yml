@@ -30,7 +30,7 @@ jobs:
       - name: Build R package
         run: R CMD build .
       - name: Check R package
-        run: R CMD check --no-manual nutrientengine_0.2.0.tar.gz
+        run: R CMD check --no-manual nutrientengine_0.3.0.tar.gz
       - uses: actions/upload-artifact@v4
         if: always()
         with:

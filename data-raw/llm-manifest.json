@@ -1,0 +1,13 @@
+{
+  "display_name": "DeepSeek-R1-Distill-Qwen-1.5B",
+  "upstream_repository": "https://github.com/deepseek-ai/DeepSeek-R1",
+  "model_repository": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+  "upstream_license": "MIT",
+  "runtime": "Ollama",
+  "ollama_tag": "deepseek-r1:1.5b",
+  "ollama_artifact_id_observed": "e0979632db5a",
+  "ollama_api": "POST /api/generate with stream=false",
+  "reviewed_on": "2026-10-15",
+  "bundled_in_repository": false,
+  "purpose": "Explain deterministic nutrient and medication interaction results and visualization semantics. The model does not create or select evidence rules."
+}

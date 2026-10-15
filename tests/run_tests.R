@@ -90,16 +90,78 @@ for (id in catalog$id[!catalog$unit_family %in% c("mass", "energy")]) {
   check(is.na(normalize_events(usda_event(id))$amount_mg), paste("special unit retained without mass inference", id))
 }
 clock <- jsonlite::fromJSON("inst/extdata/example-clock.json", simplifyVector = FALSE)
-clock_result <- analyze_interactions(clock$events, clock$context)
+clock_result <- analyze_interactions(clock$events, clock$context, medications = clock$medications)
 check(clock_result$chronology$mode == "consumption_times", "clock chronology enabled")
 check(identical(clock_result$events$time_minutes, c(0, 0, 330, 330)), "actual consumption times derive chronological gaps")
 check(clock_result$events$consumed_at_local[1] == "08:00:00", "selected local time retained")
-check(identical(result_json(clock_result), result_json(analyze_interactions(rev(clock$events), clock$context))),
+check(identical(result_json(clock_result), result_json(analyze_interactions(rev(clock$events), clock$context,
+  medications = clock$medications))),
   "timestamp sorting independent of input order")
 check(all(vapply(Filter(function(f) f$target_nutrient == "usda_1104", clock_result$interactions),
   function(f) f$status == "unsupported_pair", logical(1))), "new USDA pairs explicitly unknown")
 check(is.null(jsonlite::fromJSON(result_json(clock_result), simplifyVector = FALSE)$events[[4]]$amount_mg),
   "non-mass amounts serialize to JSON null")
+med_find <- function(r, medication_id, nutrient_id) Filter(function(x)
+  x$medication_id == medication_id && x$nutrient_event_id == nutrient_id,
+  r$medication_interactions)[[1]]
+cipro_iron <- med_find(clock_result, "ciprofloxacin_morning", "iron_breakfast")
+check(cipro_iron$rule_id == "ciprofloxacin_iron", "ciprofloxacin and iron rule matched")
+check(cipro_iron$status == "potential_timing_conflict", "asymmetric ciprofloxacin timing window applied")
+check(cipro_iron$nutrient_minus_medication_minutes == -30, "medication and nutrient clocks share one origin")
+drug_find <- function(r, first_id, second_id) Filter(function(x)
+  all(c(x$drug_a_id, x$drug_b_id) %in% c(first_id, second_id)), r$drug_interactions)[[1]]
+cipro_warfarin <- drug_find(clock_result, "ciprofloxacin_morning", "warfarin_morning")
+check(cipro_warfarin$rule_id == "ciprofloxacin_warfarin",
+  "ciprofloxacin and warfarin drug rule matched")
+check(cipro_warfarin$status == "label_monitoring_interaction",
+  "drug-drug label monitoring status applied")
+check(cipro_warfarin$time_gap_minutes == 15,
+  "drug-drug chronology shares the scenario clock")
+analgesic_medications <- append(clock$medications, list(list(id = "paracetamol_dose",
+  medication = "paracetamol", route = "oral", consumed_at = "09:00")))
+analgesic_result <- analyze_interactions(clock$events, clock$context,
+  medications = analgesic_medications)
+check(resolve_medication("paracetamol")$key == "acetaminophen",
+  "paracetamol alias resolves to acetaminophen")
+check(drug_find(analgesic_result, "paracetamol_dose", "warfarin_morning")$rule_id ==
+  "acetaminophen_warfarin", "acetaminophen and warfarin rule matched")
+potassium_event <- usda_event(1092, 500, "mg")
+lisinopril <- list(list(id = "lisinopril_dose", medication = "lisinopril",
+  route = "oral", time_minutes = 0))
+lisinopril_result <- analyze_interactions(potassium_event, medications = lisinopril)
+check(med_find(lisinopril_result, "lisinopril_dose", "test_1092")$rule_id ==
+  "lisinopril_potassium", "lisinopril and potassium supplement rule matched")
+separated_medication <- clock$medications
+separated_medication[[1]]$consumed_at <- "14:30"
+separated_result <- analyze_interactions(clock$events, clock$context, medications = separated_medication)
+check(med_find(separated_result, "ciprofloxacin_morning", "iron_breakfast")$status == "separated_per_label",
+  "label-consistent ciprofloxacin separation recognized")
+levothyroxine <- list(list(id = "thyroid", medication = "Synthroid", route = "oral", consumed_at = "07:00"))
+thyroid_result <- analyze_interactions(clock$events, clock$context, medications = levothyroxine)
+check(med_find(thyroid_result, "thyroid", "iron_breakfast")$status == "potential_timing_conflict",
+  "medication aliases and symmetric separation rule work")
+nonoral <- levothyroxine; nonoral[[1]]$route <- "intravenous"
+check(med_find(analyze_interactions(clock$events, clock$context, medications = nonoral),
+  "thyroid", "iron_breakfast")$status == "unsupported_route", "non-oral route is not generalized")
+check(nrow(medication_catalog()) == 16L && nrow(read_medication_evidence()) == 14L,
+  "expanded medication catalog and label rules loaded")
+check(nrow(read_drug_evidence()) == 8L, "expanded drug-drug label rules loaded")
+payload <- explainability_payload(clock_result)
+check(length(payload$medication_findings) == 1L &&
+  payload$medication_findings[[1]]$rule_id == "ciprofloxacin_iron",
+  "LLM payload contains only grounded medication matches")
+check(length(payload$drug_findings) == 1L &&
+  payload$drug_findings[[1]]$rule_id == "ciprofloxacin_warfarin",
+  "LLM payload contains only grounded drug-drug matches")
+check(strip_reasoning_trace("<think>private</think>Visible") == "Visible",
+  "reasoning trace is removed from displayed model output")
+formatted_llm <- format_llm_markdown("```markdown\n### **Key findings:**\n- Grounded result.\n## Safety boundary\nIgnore this.\n```")
+check(grepl("^## Bottom line", formatted_llm) &&
+  !grepl("Safety boundary", formatted_llm, fixed = TRUE) && !grepl("```", formatted_llm, fixed = TRUE),
+  "LLM output is normalized into the requested report structure")
+generation_payload <- llm_generation_payload("Explain the evidence.")
+check(identical(generation_payload$think, FALSE) && identical(generation_payload$stream, FALSE),
+  "Ollama generation disables private reasoning output")
 check(parse_consumed_at("08:00") == parse_consumed_at("08:00:00"), "HH:MM and HH:MM:SS agree")
 check(diff(parse_consumed_at(c("2026-10-14T23:50:00", "2026-10-15T00:10:00"))) == 1200,
   "dated local times support midnight crossings")

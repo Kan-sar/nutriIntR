@@ -93,7 +93,7 @@ normalize_events <- function(events) {
 }
 
 analyze_interactions <- function(events, context = list(population = "adult", meal_state = "fed"),
-                                 interpolate = FALSE) {
+                                 interpolate = FALSE, medications = NULL) {
   if (!is.logical(interpolate) || length(interpolate) != 1L || is.na(interpolate))
     stop("interpolate must be true or false.")
   if (!is.list(context) || is.null(context$population) || is.null(context$meal_state) ||
@@ -103,6 +103,10 @@ analyze_interactions <- function(events, context = list(population = "adult", me
       is.na(context$meal_state) || !nzchar(context$meal_state))
     stop("context requires scalar population and meal_state strings.")
   events <- normalize_events(events)
+  medications <- normalize_medications(medications)
+  aligned <- align_medication_chronology(events, medications)
+  events <- aligned$events
+  medications <- aligned$medications
   evidence <- read_evidence()
   findings <- list()
   for (target_i in seq_len(nrow(events))) {
@@ -186,16 +190,25 @@ analyze_interactions <- function(events, context = list(population = "adult", me
       combined_relative_effect = NULL,
       explanation = "Absolute and combined effects require a validated model; pairwise findings are reported separately.")
   })
-  list(schema_version = "1.1.0", engine_version = "0.2.0", mode = "evidence_explorer",
+  medication_findings <- medication_interactions(events, medications)
+  drug_findings <- drug_interactions(medications)
+  list(schema_version = "1.3.0", engine_version = "0.4.0", mode = "evidence_explorer",
     chronology = list(mode = if (all(is.na(events$consumed_at))) "minute_offsets" else "consumption_times",
       origin_local = if (all(is.na(events$consumed_at_local))) NULL else events$consumed_at_local[1]),
-    context = context, interpolate = interpolate, events = events,
+    context = context, interpolate = interpolate, events = events, medications = medications,
     targets = target_summaries, interactions = findings,
+    medication_interactions = medication_findings,
+    drug_interactions = drug_findings,
     warnings = c("Catalog is incomplete: unknown does not mean no biological interaction.",
       "Study references are not personalized absorption predictions.",
       "No universal timing decay or combined-effect multiplier has been assumed.",
+      "Medication findings summarize selected label evidence and are not prescribing or dosage advice.",
+      "Drug-drug findings are a small selected-label catalog; uncataloged pairs remain unknown.",
+      "Do not start, stop or reschedule a medication based only on this research prototype.",
       if (interpolate) "Dose interpolation is exploratory and has no estimated confidence interval."),
-    provenance = list(evidence_catalog = "human-meal-studies-v0.1", reviewed_on = "2026-10-14",
+    provenance = list(evidence_catalog = "human-meal-studies-v0.1",
+      medication_catalog = "selected-dailymed-label-rules-v0.1", reviewed_on = "2026-10-15",
+      drug_interaction_catalog = "selected-dailymed-drug-rules-v0.1",
       nutrient_catalog = list(source = "USDA FoodData Central nutrient.csv", release = "2026-04-30",
         definitions = nrow(nutrient_catalog()), source_url = "https://fdc.nal.usda.gov/download-datasets/"),
       extraction = "abstract-level; full-text appraisal and independent review pending"))

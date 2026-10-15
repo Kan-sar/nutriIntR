@@ -57,6 +57,83 @@ plot_network <- function(result) {
   graphics::mtext("Dot hue = nutrient | opacity + brightness = intake recency", side = 3, cex = .75)
 }
 
+medication_status_color <- function(status) {
+  palette <- c(potential_timing_conflict = "#C94C3A", separated_per_label = "#2B7A5C",
+    evidence_match_non_timing = "#7A5AA6", evidence_match_timing_unresolved = "#C07A2B",
+    long_term_context_required = "#4D6FA9", unsupported_pair = "#A5AEB8",
+    unsupported_form = "#A5AEB8", unsupported_route = "#A5AEB8", zero_dose = "#A5AEB8")
+  unname(palette[status])
+}
+
+plot_medication_network <- function(result) {
+  medications <- result$medications
+  events <- result$events
+  old <- graphics::par(mar = c(2, 2, 4, 2), bg = "#F2F3F1")
+  on.exit(graphics::par(old))
+  if (!nrow(medications)) {
+    graphics::plot.new(); graphics::title("Medication and nutrient evidence map")
+    graphics::text(.5, .5, "Add a medication to visualize label-backed checks.", col = "#62716B")
+    return(invisible(NULL))
+  }
+  medication_y <- seq(.85, .15, length.out = nrow(medications))
+  nutrient_y <- seq(.9, .1, length.out = nrow(events))
+  graphics::plot(c(0, 1), c(0, 1), type = "n", axes = FALSE, xlab = "", ylab = "",
+    main = "Medication and nutrient evidence map")
+  matched <- Filter(function(x) !is.null(x$rule_id), result$medication_interactions)
+  for (finding in matched) {
+    m <- match(finding$medication_id, medications$id)
+    n <- match(finding$nutrient_event_id, events$id)
+    graphics::arrows(.83, nutrient_y[n], .18, medication_y[m], length = .08,
+      col = medication_status_color(finding$status), lwd = 2,
+      lty = if (finding$status %in% c("potential_timing_conflict", "separated_per_label")) 1 else 2)
+  }
+  styles <- event_plot_styles(result)
+  graphics::points(rep(.9, nrow(events)), nutrient_y, pch = 19, col = styles$rgba, cex = 2.5)
+  graphics::points(rep(.1, nrow(medications)), medication_y, pch = 22, bg = "#203630", col = "#203630", cex = 2.5)
+  graphics::text(rep(.94, nrow(events)), nutrient_y, events$id, pos = 4, cex = .75, xpd = NA)
+  graphics::text(rep(.06, nrow(medications)), medication_y, medications$medication_name,
+    pos = 2, cex = .8, font = 2, xpd = NA)
+  graphics::mtext("Arrows point from nutrient events to medication events; color encodes rule status", side = 1, cex = .7)
+  graphics::legend("bottom", c("Potential timing conflict", "Separated per label", "Non-timing guidance", "Timing unresolved", "Chronic context"),
+    col = medication_status_color(c("potential_timing_conflict", "separated_per_label",
+      "evidence_match_non_timing", "evidence_match_timing_unresolved", "long_term_context_required")),
+    lty = c(1, 1, 2, 2, 2), bty = "n", cex = .65, horiz = TRUE, xpd = NA)
+  invisible(NULL)
+}
+
+plot_drug_network <- function(result) {
+  medications <- result$medications
+  old <- graphics::par(mar = c(2, 2, 4, 2), bg = "#F2F3F1")
+  on.exit(graphics::par(old))
+  if (nrow(medications) < 2L) {
+    graphics::plot.new(); graphics::title("Drug-drug evidence map")
+    graphics::text(.5, .5, "Add at least two drugs to compare selected label rules.", col = "#62716B")
+    return(invisible(NULL))
+  }
+  theta <- seq(0, 2 * pi, length.out = nrow(medications) + 1L)[-(nrow(medications) + 1L)]
+  x <- cos(theta); y <- sin(theta)
+  graphics::plot(x, y, type = "n", axes = FALSE, xlab = "", ylab = "", asp = 1,
+    xlim = c(-1.55, 1.55), ylim = c(-1.35, 1.35), main = "Selected drug-drug label checks")
+  for (finding in result$drug_interactions) {
+    a <- match(finding$drug_a_id, medications$id)
+    b <- match(finding$drug_b_id, medications$id)
+    supported <- finding$status == "label_monitoring_interaction"
+    graphics::segments(.84 * x[a], .84 * y[a], .84 * x[b], .84 * y[b],
+      col = if (supported) "#C94C3A" else "#A5AEB8", lwd = if (supported) 2.5 else 1.2,
+      lty = if (supported) 1 else 2)
+  }
+  graphics::points(x, y, pch = 22, bg = "#203630", col = "#203630", cex = 3)
+  for (i in seq_len(nrow(medications))) {
+    pos <- if (x[i] > .4) 4 else if (x[i] < -.4) 2 else if (y[i] >= 0) 3 else 1
+    graphics::text(x[i], y[i], medications$medication_name[i], pos = pos, offset = 1.1,
+      cex = .82, font = 2)
+  }
+  graphics::legend("bottom", c("Label monitoring interaction", "Uncataloged pair"),
+    col = c("#C94C3A", "#A5AEB8"), lty = c(1, 2), lwd = c(2.5, 1.2), bty = "n",
+    horiz = TRUE, cex = .72)
+  invisible(NULL)
+}
+
 plot_phytate_curve <- function(interpolate = FALSE, result = NULL) {
   anchors <- utils::read.csv(engine_file("phytate_reference.csv"))
   # result is retained for callers of the previous interface. Recency is now a

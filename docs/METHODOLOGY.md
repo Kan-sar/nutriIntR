@@ -1,6 +1,6 @@
 # Scientific method and current limits
 
-Version 0.1 is an evidence explorer. Matching a study's nutrient pair does not
+Version 0.3 is an evidence explorer. Matching a study's nutrient pair does not
 establish the outcome in a new person or meal. Qualitative findings show a
 reported direction when the current catalog's form, meal and population conditions
 are met. Target dose remains visible but is not modeled quantitatively.
@@ -30,6 +30,34 @@ Signed gaps distinguish before/after. Same meal ID permits a meal association;
 nonzero within-meal gaps remain timing-unresolved. Separate-meal timing matches
 only the recorded direction, form, 340 mg dose and 120/240-minute gaps.
 No detected effect is not proof that the effect is zero.
+
+## Medication and nutrient rules
+
+The medication catalog contains 16 commonly used medicines independently of rule
+coverage. Fourteen selected nutrient rules and eight selected drug–drug rules are
+drawn from cited DailyMed labels. Each rule
+records a normalized medication and nutrient, covered nutrient forms, interaction
+direction, timing scope, mechanism, plain-language guidance, limitation and a
+DailyMed label URL reviewed on 15 October 2026. The engine applies label timing
+windows only when the cited label states them. It does not invent a separation
+interval for doxycycline or carbidopa/levodopa, and it treats warfarin–vitamin K
+consistency and metformin–vitamin B12 monitoring as non-meal relationships.
+
+The system does not recommend doses or infer that an unsupported pair is safe.
+A single nutrient event cannot establish a long-term diet, deficiency or clinical
+response. Users must verify medication changes with the product label and a
+pharmacist or prescriber.
+
+## Explainability model
+
+DeepSeek-R1-Distill-Qwen-1.5B runs locally through Ollama. The model receives a
+reduced JSON payload containing only normalized events, matched deterministic
+findings, rule IDs, source URLs, visualization semantics and mandatory caveats.
+It cannot add findings to the engine result. The interface strips model reasoning
+tags and displays the model name and grounded rule IDs with the response. The
+output remains generated text and can be wrong. The upstream repository, license,
+runtime tag and observed Ollama artifact ID are recorded in
+`data-raw/llm-manifest.json`. Model weights remain outside the project repository.
 
 ## Correlation and modeling
 

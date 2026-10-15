@@ -59,7 +59,7 @@ nutrient_units <- function(unit, family) {
 }
 
 nutrient_forms <- function(key, default = "unspecified") {
-  known <- list(iron = c("unspecified", "non_heme_food", "ferrous_sulfate", "heme"),
+  known <- list(iron = c("unspecified", "non_heme_food", "ferrous_sulfate", "supplement", "heme"),
     usda_1141 = "heme", usda_1142 = c("non_heme_food", "unspecified"),
     vitamin_c = c("ascorbic_acid", "food", "unspecified"),
     usda_1163 = c("ascorbic_acid", "food", "unspecified"),

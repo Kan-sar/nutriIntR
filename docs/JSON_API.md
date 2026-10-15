@@ -5,7 +5,8 @@ From the project root:
 ```r
 source("scripts/load_project.R")
 input <- jsonlite::fromJSON("inst/extdata/example.json", simplifyVector = FALSE)
-result <- analyze_interactions(input$events, input$context, input$interpolate)
+result <- analyze_interactions(input$events, input$context, input$interpolate,
+  input$medications)
 cat(result_json(result))
 ```
 
@@ -45,9 +46,22 @@ Switching to offset entry converts the draft to minutes from its earliest event.
 Mixed clock and offset-only events are rejected. Clock values take precedence
 over any supplied stale minute offsets. Results update after **Analyze scenario**.
 
+Medication events use `id`, `medication`, `route` and the same `time_minutes` or
+`consumed_at` chronology. Nutrient and medication clocks share one origin so the
+reported gap is meaningful. The selected medication catalog returns every
+medication–nutrient pair as a matched rule or an explicit unsupported pair.
+Statuses distinguish potential timing conflicts, separation consistent with the
+cited label, non-timing diet guidance, chronic monitoring relationships and gaps.
+
+When at least two medication events are present, `drug_interactions` contains
+every unordered drug pair. Selected official-label matches use
+`label_monitoring_interaction`; uncataloged pairs use `unsupported_pair`, which
+means unknown in this catalog rather than safe. Drug–drug rules do not infer a
+personal effect size, dose adjustment or universal same-day timing window.
+
 `inst/extdata/example-clock.json` demonstrates USDA identities, mass and IU units,
-and local consumption times. Schema version 1.1.0 extends the 1.0 input contract
-with clock times and native measures. Engine/package version is 0.2.0.
+local consumption times, oral ciprofloxacin and oral warfarin. Schema version
+1.3.0 adds drug–drug findings. Engine/package version is 0.4.0.
 
 `source_minus_target_minutes < 0` means the influencing nutrient occurred before
 the target. Every non-self directed pair is returned, including unsupported
@@ -69,8 +83,16 @@ source("scripts/serve_api.R")
 
 - `GET http://127.0.0.1:8000/health`: status and version.
 - `GET http://127.0.0.1:8000/nutrients`: all 477 USDA definitions and native units.
+- `GET http://127.0.0.1:8000/medications`: selected medication catalog and label rules.
 - `POST http://127.0.0.1:8000/analyze`: JSON object matching the input schema.
+- `POST http://127.0.0.1:8000/explain`: deterministic analysis plus a grounded local DeepSeek explanation.
 - Success: HTTP 200 JSON result; invalid scenario: HTTP 400 JSON error.
+
+The explanation endpoint uses Ollama at `NUTRIINT_OLLAMA_URL` (default
+`http://127.0.0.1:11434`) and model `NUTRIINT_LLM_MODEL` (default
+`deepseek-r1:1.5b`). It returns HTTP 503 when the local model is unavailable.
+Model text can still be wrong; medication decisions must be verified against the
+linked label and a pharmacist or prescriber.
 
 The service binds to localhost. Authentication and public deployment are outside
 this first increment. Run the dashboard separately with `shiny::runApp("app")`.

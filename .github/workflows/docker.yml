@@ -19,7 +19,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:3838/ -o /tmp/dashboard.html
           curl --fail --silent http://127.0.0.1:8000/health
           curl --fail --silent -H 'Content-Type: application/json' --data-binary @inst/extdata/example-clock.json http://127.0.0.1:8000/analyze -o /tmp/result.json
-          python3 -c 'import json; r=json.load(open("/tmp/result.json")); assert len(r["events"]) == 4; assert len(r["interactions"]) == 12'
+          python3 -c 'import json; r=json.load(open("/tmp/result.json")); assert len(r["events"]) == 4; assert len(r["interactions"]) == 12; assert len(r["medications"]) == 2; assert len(r["medication_interactions"]) == 8; assert len(r["drug_interactions"]) == 1; assert any(x["rule_id"] == "ciprofloxacin_iron" for x in r["medication_interactions"]); assert r["drug_interactions"][0]["rule_id"] == "ciprofloxacin_warfarin"'
       - name: Show service logs
         if: always()
         run: docker compose logs --no-color

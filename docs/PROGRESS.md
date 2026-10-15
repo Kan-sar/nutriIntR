@@ -2,6 +2,32 @@
 
 10 October 2026 
 
+## Medication and explainability extension (version 0.3)
+
+- Added a normalized medication-event input that shares one clock with nutrient
+  events and returns every medication–nutrient pair as matched or unsupported.
+- Added 11 selected label-backed rules for levothyroxine, ciprofloxacin,
+  doxycycline, warfarin, metformin and carbidopa/levodopa. Timing windows come
+  only from cited labels; diet-consistency and chronic-monitoring relationships
+  remain separate from meal timing.
+- Added a medication evidence map and a detailed findings table to the dashboard,
+  plus `/medications` and medication-aware `/analyze` API output.
+- Added an optional local DeepSeek-R1-Distill-Qwen-1.5B explanation layer through
+  Ollama. The model receives a reduced deterministic payload and cannot add rules
+  to the engine result. The UI shows the model name and grounded rule IDs.
+- Updated JSON schemas to 1.2.0 and added medication chronology, route, alias,
+  separation-window, grounding-payload and reasoning-tag regression checks.
+
+## Common-drug catalog extension (version 0.4)
+
+- Separated drug discovery from evidence coverage and expanded the dropdown from
+  six to 16 commonly used medicines. Paracetamol resolves to the canonical
+  acetaminophen entry; drugs without a curated rule remain explicitly uncataloged.
+- Added DailyMed-backed nutrient rules for lisinopril with potassium supplements
+  and long-term omeprazole relationships with magnesium and vitamin B12.
+- Added selected warfarin interaction rules for acetaminophen, ibuprofen, aspirin,
+  omeprazole and azithromycin, preserving label limitations and monitoring scope.
+
 ## USDA and consumption-time extension (version 0.2)
 
 - Bundled all 477 definitions from USDA's April 2026 `nutrient.csv`, preserving
