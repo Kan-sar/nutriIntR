@@ -1,4 +1,3 @@
-# Stable nutrient identity colors, shared by the evidence map and dose view.
 nutrient_plot_colors <- function(keys) {
   catalog <- nutrient_catalog()
   registered <- c(catalog$key[order(catalog$id)], "phytate")
@@ -22,7 +21,6 @@ nutrient_plot_colors <- function(keys) {
     used <- c(used, candidate)
   }
   result <- unname(colors[keys])
-  # Unregistered extension names also receive a deterministic identity color.
   for (i in which(is.na(result))) {
     hash <- 0
     for (code in utf8ToInt(keys[i])) hash <- (hash * 131 + code) %% 16777213
