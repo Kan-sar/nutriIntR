@@ -6,8 +6,9 @@ engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
 #* Service status
 #* @get /health
 #* @serializer unboxedJSON
-function() list(status = "ok", engine_version = "0.3.0", mode = "evidence_explorer",
+function() list(status = "ok", engine_version = "0.4.0", mode = "evidence_explorer",
   usda_definitions = nrow(nutrient_catalog()), medication_rules = nrow(read_medication_evidence()),
+  drug_rules = nrow(read_drug_evidence()),
   llm_model = llm_model_name())
 
 #* Local explanation-model status
@@ -24,7 +25,8 @@ function() list(release = "2026-04-30", count = nrow(nutrient_catalog()), nutrie
 #* @get /medications
 #* @serializer unboxedJSON
 function() list(count = nrow(medication_catalog()), medications = medication_catalog(),
-  rules = read_medication_evidence())
+  rules = read_medication_evidence(), nutrient_rules = read_medication_evidence(),
+  drug_rules = read_drug_evidence())
 
 #* Analyze nutrient events with explicit context
 #* @post /analyze

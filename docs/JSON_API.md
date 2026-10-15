@@ -53,9 +53,15 @@ medication–nutrient pair as a matched rule or an explicit unsupported pair.
 Statuses distinguish potential timing conflicts, separation consistent with the
 cited label, non-timing diet guidance, chronic monitoring relationships and gaps.
 
+When at least two medication events are present, `drug_interactions` contains
+every unordered drug pair. Selected official-label matches use
+`label_monitoring_interaction`; uncataloged pairs use `unsupported_pair`, which
+means unknown in this catalog rather than safe. Drug–drug rules do not infer a
+personal effect size, dose adjustment or universal same-day timing window.
+
 `inst/extdata/example-clock.json` demonstrates USDA identities, mass and IU units,
-local consumption times and oral ciprofloxacin. Schema version 1.2.0 adds
-medications and medication findings. Engine/package version is 0.3.0.
+local consumption times, oral ciprofloxacin and oral warfarin. Schema version
+1.3.0 adds drug–drug findings. Engine/package version is 0.4.0.
 
 `source_minus_target_minutes < 0` means the influencing nutrient occurred before
 the target. Every non-self directed pair is returned, including unsupported

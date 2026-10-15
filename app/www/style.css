@@ -40,6 +40,10 @@ input[type=radio] { accent-color:var(--accent); }
 .btn-primary { background:var(--accent); border-color:var(--accent); color:#fff; }
 .btn-primary:hover,.btn-primary:focus,.btn-primary:active { background:#10513d!important; border-color:#10513d!important; }
 .btn-add { width:100%; border:1px dashed #aac5b5; background:#f0f6f1; color:var(--accent); }
+.composer-group { margin:17px 0; padding:15px; border:1px solid var(--line); border-radius:9px; background:#fbfcfa; }
+.composer-group h3 { margin:0 0 13px; font-size:15px; }
+.nutrient-builder { border-left:4px solid #129b88; }
+.drug-builder { border-left:4px solid #4d6fa9; }
 .json-editor,.medication-editor { margin:19px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:13px 0; }
 .medication-editor { background:#f7faf7; border:1px solid var(--line); border-radius:8px; padding:13px; }
 .json-editor summary,.medication-editor summary { cursor:pointer; font-size:12px; font-weight:600; }
@@ -56,7 +60,7 @@ textarea { font-family:Consolas,monospace!important; font-size:11px!important; r
 .status-draft { border-color:#e3d4a2; background:#fbf5e5; }
 .status-draft strong,.status-draft span { color:#745718; }
 .status-error { border-color:#e5b9b4; background:#fff0ed; color:#8c3027; }
-.metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:13px; margin-bottom:21px; }
+.metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:13px; margin-bottom:21px; }
 .metric { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:9px; background:#fff; padding:17px 20px; }
 .metric-label { font-size:11px; font-weight:600; color:var(--muted); }
 .metric-value { font-size:30px; font-weight:600; letter-spacing:-1px; line-height:1.3; margin:3px 0; }
@@ -75,7 +79,7 @@ h4 { font-size:16px; font-weight:600; }
 .note { font-size:12px; color:var(--muted); line-height:1.65; }
 .shiny-plot-output { max-width:100%; }
 #network,#curve { border-radius:8px; overflow:hidden; }
-#events,#findings,#medications,#medication_findings,#sources,#medication_sources,#catalog_table,#food_pairs { overflow-x:auto; }
+#events,#findings,#medications,#medication_findings,#drug_findings,#sources,#medication_sources,#drug_sources,#catalog_table,#food_pairs { overflow-x:auto; }
 table { font-size:12px; width:100%; }
 .table>thead>tr>th { background:#f3f6f2; border-bottom:1px solid var(--line); font-weight:600; color:var(--muted); white-space:nowrap; padding:11px 12px; }
 .table>tbody>tr>td { padding:12px; border-top:1px solid #e8ede8; vertical-align:top; min-width:75px; }

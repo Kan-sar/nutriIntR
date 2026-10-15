@@ -108,6 +108,15 @@ cipro_iron <- med_find(clock_result, "ciprofloxacin_morning", "iron_breakfast")
 check(cipro_iron$rule_id == "ciprofloxacin_iron", "ciprofloxacin and iron rule matched")
 check(cipro_iron$status == "potential_timing_conflict", "asymmetric ciprofloxacin timing window applied")
 check(cipro_iron$nutrient_minus_medication_minutes == -30, "medication and nutrient clocks share one origin")
+drug_find <- function(r, first_id, second_id) Filter(function(x)
+  all(c(x$drug_a_id, x$drug_b_id) %in% c(first_id, second_id)), r$drug_interactions)[[1]]
+cipro_warfarin <- drug_find(clock_result, "ciprofloxacin_morning", "warfarin_morning")
+check(cipro_warfarin$rule_id == "ciprofloxacin_warfarin",
+  "ciprofloxacin and warfarin drug rule matched")
+check(cipro_warfarin$status == "label_monitoring_interaction",
+  "drug-drug label monitoring status applied")
+check(cipro_warfarin$time_gap_minutes == 15,
+  "drug-drug chronology shares the scenario clock")
 separated_medication <- clock$medications
 separated_medication[[1]]$consumed_at <- "14:30"
 separated_result <- analyze_interactions(clock$events, clock$context, medications = separated_medication)
@@ -122,10 +131,14 @@ check(med_find(analyze_interactions(clock$events, clock$context, medications = n
   "thyroid", "iron_breakfast")$status == "unsupported_route", "non-oral route is not generalized")
 check(nrow(medication_catalog()) == 6L && nrow(read_medication_evidence()) == 11L,
   "selected medication catalog and label rules loaded")
+check(nrow(read_drug_evidence()) == 3L, "selected drug-drug label rules loaded")
 payload <- explainability_payload(clock_result)
 check(length(payload$medication_findings) == 1L &&
   payload$medication_findings[[1]]$rule_id == "ciprofloxacin_iron",
   "LLM payload contains only grounded medication matches")
+check(length(payload$drug_findings) == 1L &&
+  payload$drug_findings[[1]]$rule_id == "ciprofloxacin_warfarin",
+  "LLM payload contains only grounded drug-drug matches")
 check(strip_reasoning_trace("<think>private</think>Visible") == "Visible",
   "reasoning trace is removed from displayed model output")
 generation_payload <- llm_generation_payload("Explain the evidence.")

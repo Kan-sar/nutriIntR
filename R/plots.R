@@ -101,6 +101,39 @@ plot_medication_network <- function(result) {
   invisible(NULL)
 }
 
+plot_drug_network <- function(result) {
+  medications <- result$medications
+  old <- graphics::par(mar = c(2, 2, 4, 2), bg = "#F2F3F1")
+  on.exit(graphics::par(old))
+  if (nrow(medications) < 2L) {
+    graphics::plot.new(); graphics::title("Drug-drug evidence map")
+    graphics::text(.5, .5, "Add at least two drugs to compare selected label rules.", col = "#62716B")
+    return(invisible(NULL))
+  }
+  theta <- seq(0, 2 * pi, length.out = nrow(medications) + 1L)[-(nrow(medications) + 1L)]
+  x <- cos(theta); y <- sin(theta)
+  graphics::plot(x, y, type = "n", axes = FALSE, xlab = "", ylab = "", asp = 1,
+    xlim = c(-1.55, 1.55), ylim = c(-1.35, 1.35), main = "Selected drug-drug label checks")
+  for (finding in result$drug_interactions) {
+    a <- match(finding$drug_a_id, medications$id)
+    b <- match(finding$drug_b_id, medications$id)
+    supported <- finding$status == "label_monitoring_interaction"
+    graphics::segments(.84 * x[a], .84 * y[a], .84 * x[b], .84 * y[b],
+      col = if (supported) "#C94C3A" else "#A5AEB8", lwd = if (supported) 2.5 else 1.2,
+      lty = if (supported) 1 else 2)
+  }
+  graphics::points(x, y, pch = 22, bg = "#203630", col = "#203630", cex = 3)
+  for (i in seq_len(nrow(medications))) {
+    pos <- if (x[i] > .4) 4 else if (x[i] < -.4) 2 else if (y[i] >= 0) 3 else 1
+    graphics::text(x[i], y[i], medications$medication_name[i], pos = pos, offset = 1.1,
+      cex = .82, font = 2)
+  }
+  graphics::legend("bottom", c("Label monitoring interaction", "Uncataloged pair"),
+    col = c("#C94C3A", "#A5AEB8"), lty = c(1, 2), lwd = c(2.5, 1.2), bty = "n",
+    horiz = TRUE, cex = .72)
+  invisible(NULL)
+}
+
 plot_phytate_curve <- function(interpolate = FALSE, result = NULL) {
   anchors <- utils::read.csv(engine_file("phytate_reference.csv"))
   # result is retained for callers of the previous interface. Recency is now a

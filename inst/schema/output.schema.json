@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:nutrientengine:output:1.2.0",
+  "$id": "urn:nutrientengine:output:1.3.0",
   "title": "Nutrient interaction evidence result",
   "type": "object",
-  "required": ["schema_version", "engine_version", "mode", "context", "events", "medications", "targets", "interactions", "medication_interactions", "warnings", "provenance"],
+  "required": ["schema_version", "engine_version", "mode", "context", "events", "medications", "targets", "interactions", "medication_interactions", "drug_interactions", "warnings", "provenance"],
   "properties": {
-    "schema_version": {"const": "1.2.0"},
+    "schema_version": {"const": "1.3.0"},
     "engine_version": {"type": "string"},
     "mode": {"const": "evidence_explorer"},
     "context": {"type": "object"},
@@ -98,6 +98,22 @@
           "nutrient_minus_medication_minutes": {"type": "number"},
           "status": {"enum": ["unsupported_pair", "unsupported_form", "unsupported_route", "zero_dose", "potential_timing_conflict", "separated_per_label", "evidence_match_non_timing", "evidence_match_timing_unresolved", "long_term_context_required"]},
           "direction": {"enum": ["reduces_medication_absorption", "may_reduce_medication_absorption", "intake_consistency_affects_therapy", "may_lower_nutrient_status", "unknown"]},
+          "rule_id": {"type": ["string", "null"]},
+          "citation": {"type": ["object", "null"]}
+        }
+      }
+    },
+    "drug_interactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["drug_a_id", "drug_b_id", "status", "direction", "time_gap_minutes", "rule_id", "citation"],
+        "properties": {
+          "drug_a_id": {"type": "string"},
+          "drug_b_id": {"type": "string"},
+          "time_gap_minutes": {"type": "number"},
+          "status": {"enum": ["unsupported_pair", "unsupported_route", "label_monitoring_interaction"]},
+          "direction": {"enum": ["may_increase_anticoagulant_effect", "unknown"]},
           "rule_id": {"type": ["string", "null"]},
           "citation": {"type": ["object", "null"]}
         }

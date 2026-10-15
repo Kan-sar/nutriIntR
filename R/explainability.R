@@ -42,6 +42,8 @@ explainability_payload <- function(result) {
   nutrient_matches <- Filter(function(x) x$status == "qualitative_evidence", result$interactions)
   medication_matches <- Filter(function(x) !x$status %in% c("unsupported_pair", "unsupported_form",
     "unsupported_route", "zero_dose"), result$medication_interactions)
+  drug_matches <- Filter(function(x) x$status == "label_monitoring_interaction",
+    result$drug_interactions)
   event_rows <- lapply(seq_len(nrow(result$events)), function(i) {
     event <- result$events[i, ]
     list(id = event$id, nutrient = event$nutrient_name, amount = event$amount,
@@ -65,18 +67,26 @@ explainability_payload <- function(result) {
     direction = x$direction, effect = x$effect, mechanism = x$mechanism,
     guidance = x$guidance, limitation = x$applicability,
     source_url = if (is.null(x$citation)) NULL else x$citation$url))
+  drug_rows_found <- lapply(drug_matches, function(x) list(rule_id = x$rule_id,
+    drug_a = x$drug_a_name, drug_b = x$drug_b_name, status = x$status,
+    direction = x$direction, effect = x$effect, mechanism = x$mechanism,
+    guidance = x$guidance, limitation = x$applicability,
+    source_url = if (is.null(x$citation)) NULL else x$citation$url))
   list(
     scope = "Evidence explorer. No diagnosis, dose change, exact absorption estimate or individualized treatment advice.",
     events = event_rows, medications = medication_rows,
     nutrient_findings = nutrient_rows, medication_findings = medication_rows_found,
+    drug_findings = drug_rows_found,
     unresolved_nutrient_pairs = length(result$interactions) - length(nutrient_matches),
     unresolved_medication_pairs = length(result$medication_interactions) - length(medication_matches),
+    unresolved_drug_pairs = length(result$drug_interactions) - length(drug_matches),
     visualization_context = list(
       timeline = "Events are ordered by entered time; position is chronology and does not imply absorption kinetics.",
       interaction_map = "Directed solid arrows represent applicable nutrient evidence. Dashed arrows represent unresolved applicability. Node color identifies a nutrient; brightness and opacity encode recency only.",
       dose_reference = "Hollow phytate points are published study anchors, not patient predictions. Entered intake recency appears in a separate table.",
       medication_map = "Arrows point from nutrient events to medication events. Color distinguishes potential timing conflict, label-consistent separation, non-timing guidance, unresolved timing and chronic monitoring context. Missing arrows are catalog gaps.",
-      medication_table = "Status distinguishes a potential timing conflict, label-consistent separation, non-timing guidance, chronic monitoring context and unsupported pairs."),
+      medication_table = "Status distinguishes a potential timing conflict, label-consistent separation, non-timing guidance, chronic monitoring context and unsupported pairs.",
+      drug_table = "Drug-drug rows are unordered selected pairs. A label-monitoring interaction is not a dose or timing recommendation; unsupported means uncataloged, not safe."),
     required_caveats = result$warnings)
 }
 
@@ -96,10 +106,12 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
   evidence <- explainability_payload(result)
   prompt <- paste(
     "Explain this NutriInt-R analysis to a research user using only the supplied JSON evidence.",
-    "Start with the most important matched medication or nutrient finding.",
+    "Start with the most important matched nutrient-nutrient, nutrient-drug or drug-drug finding.",
     "Then interpret what the timeline, interaction map and dose-reference view do and do not show.",
     "Mention rule IDs and source URLs for every clinical interaction claim.",
     "Clearly separate potential timing conflicts from label-consistent separation, chronic monitoring relationships and unknown pairs.",
+    "Use the supplied counts exactly. Unsupported or unresolved pairs are unknown, not resolved and not evidence of safety.",
+    "The dose-reference view contains only phytate study anchors; never describe a drug as a dose-reference anchor.",
     "Do not diagnose, prescribe, recommend a dose, invent a threshold, infer an interaction from an unsupported pair or expose private chain-of-thought.",
     "End with a short Safety boundary section that directs medication changes to a pharmacist or prescriber.",
     "Evidence JSON:",
@@ -111,5 +123,6 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
   list(text = strip_reasoning_trace(response$response), model = llm_model_name(),
     endpoint = llm_endpoint(), generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
     grounded_rule_ids = unique(c(vapply(evidence$nutrient_findings, function(x) x$rule_id, character(1)),
-      vapply(evidence$medication_findings, function(x) x$rule_id, character(1)))))
+      vapply(evidence$medication_findings, function(x) x$rule_id, character(1)),
+      vapply(evidence$drug_findings, function(x) x$rule_id, character(1)))))
 }

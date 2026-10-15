@@ -72,20 +72,23 @@ ui <- fluidPage(
   tags$header(class = "app-header",
     div(class = "brand", span(class = "brand-mark", "n"),
       div(strong("Nutrient Lab"))),
-    div(class = "header-meta", span("477 nutrients"))),
+    div(class = "header-meta", span("477 nutrients / 6 drugs"))),
   div(class = "page-intro", div(div(class = "eyebrow", "Explore / compare / understand"),
-    h1("A clearer view of nutrient interactions."),
-    p("Explore your nutrients, amounts and intake times in one place."))),
+    h1("One timeline for nutrients and drugs."),
+    p("Compare nutrient–nutrient, nutrient–drug and drug–drug evidence in one place."))),
   div(class = "workspace-grid",
     tags$aside(class = "composer", `aria-label` = "Scenario builder",
       div(class = "section-title", span(class = "step-label", "01"), h2("Build your scenario")),
-      p(class = "note", "Add an intake, then analyze your draft."),
-      selectizeInput("nutrient", "Nutrient", nutrient_choices, selected = "iron"),
-      div(class = "field-hint", textOutput("nutrient_hint")),
-      selectInput("form", "Chemical form", nutrient_forms("iron")),
-      fluidRow(column(6, numericInput("amount", "Amount", 6, min = 0)),
-               column(6, selectInput("unit", "Unit", c("mg", "g", "mcg")))),
-      div(class = "field-divider", "Intake details"),
+      p(class = "note", "Build one timeline with separate nutrient and drug selectors, then analyze all three pair types."),
+      div(class = "composer-group nutrient-builder", h3("Add a nutrient"),
+        selectizeInput("nutrient", "Nutrient dropdown", nutrient_choices, selected = "iron"),
+        div(class = "field-hint", textOutput("nutrient_hint")),
+        selectInput("form", "Chemical form", nutrient_forms("iron")),
+        fluidRow(column(6, numericInput("amount", "Amount", 6, min = 0)),
+                 column(6, selectInput("unit", "Unit", c("mg", "g", "mcg")))),
+        textInput("meal", "Meal label", "lunch"),
+        actionButton("add", "+ Add nutrient to draft", class = "btn-add")),
+      div(class = "field-divider", "Shared timing"),
       radioButtons("timing_mode", "Timing", c("Clock time" = "clock", "Minutes from start" = "offset"), selected = "clock", inline = TRUE),
       conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", 0, min = 0)),
       conditionalPanel("input.timing_mode == 'clock'",
@@ -94,11 +97,9 @@ ui <- fluidPage(
             value = clock_default, step = "60",
             onchange = "Shiny.setInputValue('consumed_time', this.value, {priority:'event'});")),
         p(class = "field-hint", "Local time. All clock entries refer to the same day.")),
-      textInput("meal", "Meal label", "lunch"),
-      actionButton("add", "+ Add intake to draft", class = "btn-add"),
-      tags$details(class = "medication-editor", tags$summary("Add a medication"),
-        p(class = "note", "Medication checks use selected label rules and the same scenario timeline."),
-        selectInput("medication", "Medication", medication_choices),
+      div(class = "composer-group drug-builder", h3("Add a drug"),
+        p(class = "note", "Drug checks use selected official-label rules and the same timeline."),
+        selectizeInput("drug", "Drug dropdown", medication_choices),
         selectInput("medication_route", "Route", c("oral"), selected = "oral"),
         conditionalPanel("input.timing_mode == 'offset'", numericInput("medication_minute", "Medication minute", 0, min = 0)),
         conditionalPanel("input.timing_mode == 'clock'",
@@ -106,7 +107,7 @@ ui <- fluidPage(
             tags$input(id = "medication_time", type = "time", class = "form-control",
               value = "08:30", step = "60",
               onchange = "Shiny.setInputValue('medication_time', this.value, {priority:'event'});"))),
-        actionButton("add_medication", "+ Add medication to draft", class = "btn-add")),
+        actionButton("add_medication", "+ Add drug to draft", class = "btn-add")),
       tags$details(class = "json-editor", tags$summary("Advanced / edit scenario JSON"),
         p(class = "note", "Edit or remove events and change study context here. Use dated local times for overnight scenarios."),
         textAreaInput("scenario", "Scenario JSON", example_text, height = "260px")),
@@ -124,20 +125,24 @@ ui <- fluidPage(
         id = "analysis_view",
         tabPanel("Timeline", view_heading("Intake timeline", "Every intake in order, with amounts and local consumption times."),
           plotOutput("timeline", height = "340px"), h3("Analyzed intakes"), tableOutput("events")),
-        tabPanel("Interaction map", view_heading("How the nutrients connect", "Explore directed connections between your selected nutrients."),
+        tabPanel("Nutrient–nutrient", view_heading("Nutrient–nutrient interactions", "Explore every directed nutrient pair, with matched evidence and explicit unknowns."),
           plotOutput("network", height = "460px"), uiOutput("network_key"),
+          h3("Directed nutrient pairs"), tableOutput("findings"),
           p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
-        tabPanel("Findings", view_heading("Evidence & applicability", "Inspect each directed pair, including unresolved cases and source citations."), tableOutput("findings")),
-        tabPanel("Medication checks", view_heading("Medication and nutrient checks", "Selected label-based interactions with timing and scope kept explicit."),
+        tabPanel("Nutrient–drug", view_heading("Nutrient–drug interactions", "Selected label-based interactions with timing and scope kept explicit."),
           plotOutput("medication_network", height = "440px"), tableOutput("medications"),
           h3("Matched and unresolved pairs"), tableOutput("medication_findings"),
           p(class = "note", "This research prototype does not replace a pharmacist, prescriber or product-specific medication instructions.")),
+        tabPanel("Drug–drug", view_heading("Drug–drug interactions", "Compare every selected drug pair against the small official-label catalog."),
+          plotOutput("drug_network", height = "420px"), h3("Selected drug pairs"), tableOutput("drug_findings"),
+          p(class = "note", "Uncataloged means unknown in this version, not safe. Never change medication without a qualified clinician.")),
         tabPanel("Dose reference", view_heading("Dose in context", "Study observations and the recency of your intakes, kept distinct."),
           plotOutput("curve", height = "360px"), uiOutput("dose_recency"), uiOutput("dose_key"),
           p(class = "note", "Relative iron absorption in wheat-roll experiments. Enable interpolation in scenario JSON to connect the study observations.")),
         tabPanel("Sources", view_heading("Trace the evidence", "Study scope, dose basis and source details."),
           h3("Nutrient evidence"), tableOutput("sources"),
-          h3("Medication label evidence"), tableOutput("medication_sources")),
+          h3("Medication label evidence"), tableOutput("medication_sources"),
+          h3("Drug-drug label evidence"), tableOutput("drug_sources")),
         tabPanel("USDA catalog", view_heading("The nutrient library", "All 477 definitions from USDA nutrient.csv, April 2026."),
           textInput("catalog_search", "Filter definitions by name, ID or unit", ""),
           textOutput("catalog_count"), tableOutput("catalog_table"),
@@ -180,7 +185,7 @@ server <- function(input, output, session) {
   output$draft_summary <- renderText({
     tryCatch({
       draft <- jsonlite::fromJSON(input$scenario, simplifyVector = FALSE)
-      paste(length(draft$events), "intakes in draft")
+      paste(length(draft$events), "nutrients /", length(draft$medications), "drugs in draft")
     }, error = function(e) "Check draft JSON")
   })
   run <- function(text) {
@@ -223,7 +228,7 @@ server <- function(input, output, session) {
       while (paste0("medication_", index) %in% existing) index <- index + 1L
       origin <- if (input$timing_mode == "clock") clock_input(input$medication_time) else NULL
       payload <- prepare_timing(payload, input$timing_mode, origin)
-      item <- list(id = paste0("medication_", index), medication = input$medication,
+      item <- list(id = paste0("medication_", index), medication = input$drug,
         route = input$medication_route)
       if (input$timing_mode == "clock") item$consumed_at <- origin else item$time_minutes <- input$medication_minute
       payload$medications <- append(payload$medications, list(item))
@@ -248,15 +253,19 @@ server <- function(input, output, session) {
       strong(class = "metric-value", value), span(class = "metric-detail", detail))
     medication_matches <- sum(vapply(result$medication_interactions,
       function(f) !f$status %in% c("unsupported_pair", "unsupported_form", "unsupported_route", "zero_dose"), logical(1)))
+    drug_matches <- sum(vapply(result$drug_interactions,
+      function(f) f$status == "label_monitoring_interaction", logical(1)))
     div(class = "metrics",
-      metric(nrow(result$events), "Intake events", "In the analyzed scenario"),
-      metric(matched, "Evidence matches", "Applicable qualitative findings"),
-      metric(medication_matches, "Medication matches", "Selected label-based findings"),
-      metric(length(result$interactions) - matched, "Unresolved pairs", "No applicable nutrient finding"))
+      metric(nrow(result$events), "Nutrients", "In the analyzed scenario"),
+      metric(nrow(result$medications), "Drugs", "In the analyzed scenario"),
+      metric(matched, "Nutrient–nutrient", "Evidence matches"),
+      metric(medication_matches, "Nutrient–drug", "Evidence matches"),
+      metric(drug_matches, "Drug–drug", "Evidence matches"))
   })
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
   output$medication_network <- renderPlot({req(current()); plot_medication_network(current())})
+  output$drug_network <- renderPlot({req(current()); plot_drug_network(current())})
   output$curve <- renderPlot({req(current()); plot_phytate_curve(current()$interpolate)})
   output$dose_recency <- renderUI({
     req(current()); data <- intake_recency_table(current())
@@ -318,9 +327,21 @@ server <- function(input, output, session) {
       guidance = if (is.null(f$guidance)) f$applicability else f$guidance,
       source = if (is.null(f$citation)) "" else f$citation$url)))
   }, striped = TRUE, bordered = FALSE, spacing = "s")
+  output$drug_findings <- renderTable({
+    req(current()); findings <- current()$drug_interactions
+    if (!length(findings)) return(data.frame(message = "Add at least two drugs to run drug-drug checks."))
+    do.call(rbind, lapply(findings, function(f) data.frame(
+      drug_a = f$drug_a_name, drug_b = f$drug_b_name,
+      gap_minutes = f$time_gap_minutes, status = f$status, direction = f$direction,
+      rule = if (is.null(f$rule_id)) "" else f$rule_id,
+      guidance = if (is.null(f$guidance)) f$applicability else f$guidance,
+      source = if (is.null(f$citation)) "" else f$citation$url)))
+  }, striped = TRUE, bordered = FALSE, spacing = "s")
   output$sources <- renderTable(read_evidence()[, c("rule_id", "dose_basis", "scope", "sample_size", "url", "limitation")])
   output$medication_sources <- renderTable(read_medication_evidence()[,
     c("rule_id", "medication_name", "nutrient_key", "scope", "clinical_significance", "url", "limitation")])
+  output$drug_sources <- renderTable(read_drug_evidence()[,
+    c("rule_id", "drug_a_name", "drug_b_name", "clinical_significance", "url", "limitation")])
   output$llm_status <- renderUI({
     status <- llm_status()
     div(class = if (status$available) "status" else "status status-draft",

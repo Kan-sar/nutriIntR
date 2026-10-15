@@ -7,6 +7,7 @@
     {"id": "vitamin_a_lunch", "nutrient": "usda_1104", "form": "food", "amount": 800, "unit": "IU", "consumed_at": "13:30", "meal_id": "lunch"}
   ],
   "medications": [
-    {"id": "ciprofloxacin_morning", "medication": "ciprofloxacin", "route": "oral", "consumed_at": "08:30"}
+    {"id": "ciprofloxacin_morning", "medication": "ciprofloxacin", "route": "oral", "consumed_at": "08:30"},
+    {"id": "warfarin_morning", "medication": "warfarin", "route": "oral", "consumed_at": "08:45"}
   ]
 }

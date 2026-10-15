@@ -5,9 +5,9 @@ chronology through nutrient correlation findings, visualizations and JSON.
 
 Development plan: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
 
-Version 0.3 is a working research preview: an R engine, Shiny dashboard, JSON
-output and localhost API, with nutrient evidence, selected medication-label
-checks and a local explainability layer.
+Version 0.4 is a working research preview: an R engine, Shiny dashboard, JSON
+output and localhost API, with separate nutrient and drug builders,
+nutrient–nutrient, nutrient–drug and drug–drug checks, and a local explainability layer.
 
 The catalog now covers **all 477 definitions in USDA nutrient.csv** (April 2026).
 Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
@@ -126,6 +126,9 @@ source with `source("scripts/acquire_usda.R")`; its provenance is committed in
 - Eleven selected DailyMed label rules across levothyroxine, ciprofloxacin,
   doxycycline, warfarin, metformin and carbidopa/levodopa. Timing-aware findings
   remain distinct from diet-consistency and chronic-monitoring relationships.
+- Three selected DailyMed drug–drug label rules for ciprofloxacin/warfarin,
+  doxycycline/warfarin and levothyroxine/warfarin. Every selected drug pair is
+  returned; uncataloged pairs remain explicitly unknown rather than being labeled safe.
 - Optional grounded explanations from DeepSeek-R1-Distill-Qwen-1.5B through a
   local Ollama endpoint. The prompt includes only deterministic findings,
   visualization semantics, citations and safety boundaries.
@@ -160,7 +163,7 @@ Rscript tests/test_food.R
 Rscript scripts/demo.R
 python tests/validate_schemas.py
 R CMD build .
-R CMD check --no-manual nutrientengine_0.2.0.tar.gz
+R CMD check --no-manual nutrientengine_0.4.0.tar.gz
 ```
 
 Schema checks require Python `jsonschema` (`python -m pip install jsonschema`).

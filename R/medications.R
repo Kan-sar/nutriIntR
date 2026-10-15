@@ -6,6 +6,11 @@ read_medication_evidence <- function() {
   rules
 }
 
+read_drug_evidence <- function() {
+  utils::read.csv(engine_file("drug_interactions.csv"), stringsAsFactors = FALSE,
+    na.strings = c("", "NA"))
+}
+
 medication_catalog <- function() {
   rules <- read_medication_evidence()
   keys <- unique(rules$medication_key)
@@ -141,6 +146,45 @@ medication_interactions <- function(events, medications) {
       }
       findings[[length(findings) + 1L]] <- item
     }
+  }
+  findings
+}
+
+drug_interactions <- function(medications) {
+  if (is.null(medications) || nrow(medications) < 2L) return(list())
+  rules <- read_drug_evidence()
+  pairs <- utils::combn(seq_len(nrow(medications)), 2L)
+  findings <- vector("list", ncol(pairs))
+  for (i in seq_len(ncol(pairs))) {
+    first <- medications[pairs[1, i], ]
+    second <- medications[pairs[2, i], ]
+    matched <- rules[(rules$drug_a_key == first$medication_key &
+      rules$drug_b_key == second$medication_key) |
+      (rules$drug_a_key == second$medication_key &
+        rules$drug_b_key == first$medication_key), , drop = FALSE]
+    item <- list(drug_a_id = first$id, drug_a = first$medication_key,
+      drug_a_name = first$medication_name, drug_b_id = second$id,
+      drug_b = second$medication_key, drug_b_name = second$medication_name,
+      time_gap_minutes = second$time_minutes - first$time_minutes,
+      status = "unsupported_pair", direction = "unknown", rule_id = NULL,
+      clinical_significance = NULL, effect = NULL, mechanism = NULL,
+      guidance = NULL, citation = NULL,
+      applicability = "No matching drug-drug rule in this version's selected label catalog.")
+    if (nrow(matched)) {
+      rule <- matched[1, ]
+      item$rule_id <- rule$rule_id
+      item$direction <- rule$direction
+      item$clinical_significance <- rule$clinical_significance
+      item$effect <- rule$effect
+      item$mechanism <- rule$mechanism
+      item$guidance <- rule$guidance
+      item$citation <- list(source = rule$evidence_source, url = rule$url,
+        reviewed_on = rule$reviewed_on)
+      item$applicability <- rule$limitation
+      item$status <- if (first$route == "oral" && second$route == "oral")
+        "label_monitoring_interaction" else "unsupported_route"
+    }
+    findings[[i]] <- item
   }
   findings
 }
