@@ -1,4 +1,3 @@
-# Helpers are internal; public functions are documented in man/ and docs/.
 engine_file <- function(name) {
   installed <- system.file("extdata", name, package = "nutrientengine")
   if (nzchar(installed)) return(installed)
