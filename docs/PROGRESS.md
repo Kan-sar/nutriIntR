@@ -1,6 +1,6 @@
 # Development progress
 
-14 October 2026 — first working increment.
+10 October 2026 
 
 ## USDA and consumption-time extension (version 0.2)
 
