@@ -85,6 +85,11 @@ strip_reasoning_trace <- function(text) {
   trimws(text)
 }
 
+llm_generation_payload <- function(prompt) {
+  list(model = llm_model_name(), prompt = prompt, stream = FALSE, think = FALSE,
+    options = list(temperature = 0.1, num_predict = 700))
+}
+
 generate_llm_explanation <- function(result, timeout_seconds = 120) {
   status <- llm_status()
   if (!status$available) stop(status$message)
@@ -100,8 +105,7 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
     "Evidence JSON:",
     as.character(jsonlite::toJSON(evidence, auto_unbox = TRUE, null = "null", na = "null")),
     sep = "\n\n")
-  response <- ollama_request("/api/generate", list(model = llm_model_name(), prompt = prompt,
-    stream = FALSE, options = list(temperature = 0.1, num_predict = 700)), timeout_seconds)
+  response <- ollama_request("/api/generate", llm_generation_payload(prompt), timeout_seconds)
   if (is.null(response$response) || !nzchar(trimws(response$response)))
     stop("The model returned an empty explanation.")
   list(text = strip_reasoning_trace(response$response), model = llm_model_name(),

@@ -128,6 +128,9 @@ check(length(payload$medication_findings) == 1L &&
   "LLM payload contains only grounded medication matches")
 check(strip_reasoning_trace("<think>private</think>Visible") == "Visible",
   "reasoning trace is removed from displayed model output")
+generation_payload <- llm_generation_payload("Explain the evidence.")
+check(identical(generation_payload$think, FALSE) && identical(generation_payload$stream, FALSE),
+  "Ollama generation disables private reasoning output")
 check(parse_consumed_at("08:00") == parse_consumed_at("08:00:00"), "HH:MM and HH:MM:SS agree")
 check(diff(parse_consumed_at(c("2026-10-14T23:50:00", "2026-10-15T00:10:00"))) == 1200,
   "dated local times support midnight crossings")
