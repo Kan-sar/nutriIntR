@@ -100,13 +100,13 @@ format_llm_markdown <- function(text) {
   text <- gsub("\r\n?", "\n", text)
   text <- gsub("(?m)^\\s*```(?:markdown|md|text)?\\s*$", "", text, perl = TRUE)
   headings <- c(
-    "Key findings" = "Key findings",
+    "Bottom line" = "Bottom line",
+    "Key findings" = "Bottom line",
     "What the visualizations show" = "What the visualizations show",
-    "Unknowns and limitations" = "Unknowns and limitations",
-    "Safety boundary" = "Safety boundary"
+    "Unknowns and limitations" = "Unknowns and limitations"
   )
   for (label in names(headings)) {
-    pattern <- paste0("(?im)^\\s*(?:\\*\\*)?", label,
+    pattern <- paste0("(?im)^\\s*(?:#{1,6}\\s*)?(?:\\*\\*)?", label,
       "\\s*:?(?:\\*\\*)?\\s*:?\\s*$")
     text <- gsub(pattern, paste0("## ", headings[[label]]), text, perl = TRUE)
   }
@@ -115,11 +115,7 @@ format_llm_markdown <- function(text) {
   text <- gsub("\n[ \t]+\n", "\n\n", text)
   text <- gsub("\n{3,}", "\n\n", text)
   if (!grepl("(?m)^##\\s+", text, perl = TRUE)) text <- paste("## Explanation", text, sep = "\n\n")
-  if (!grepl("(?im)^##\\s+Safety boundary\\s*$", text, perl = TRUE)) {
-    text <- paste(text,
-      "## Safety boundary\n\nThis is an evidence-exploration summary, not medical advice. Confirm medication changes with a pharmacist or prescriber.",
-      sep = "\n\n")
-  }
+  text <- sub("(?is)\\n*##\\s+Safety boundary\\s*.*$", "", text, perl = TRUE)
   trimws(text)
 }
 
@@ -132,23 +128,30 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
   status <- llm_status()
   if (!status$available) stop(status$message)
   evidence <- explainability_payload(result)
+  matched_findings <- list(
+    nutrient_nutrient = evidence$nutrient_findings,
+    nutrient_drug = evidence$medication_findings,
+    drug_drug = evidence$drug_findings)
   prompt <- paste(
     "Explain this NutriInt-R analysis to a research user using only the supplied JSON evidence.",
-    "Return concise Markdown with exactly these four level-2 headings in this order:",
-    "## Key findings",
+    "Return concise Markdown with exactly these three level-2 headings in this order:",
+    "## Bottom line",
     "## What the visualizations show",
     "## Unknowns and limitations",
-    "## Safety boundary",
     "Under each heading use short bullet points. Use at most two sentences per bullet.",
-    "Start Key findings with the most important matched nutrient-nutrient, nutrient-drug or drug-drug finding.",
+    "Be opinionated about the evidence: state a clear bottom line, rank matched findings by practical importance, and identify what deserves the most attention.",
+    "Do not simply list intake events. Lead with the most important matched nutrient-nutrient, nutrient-drug or drug-drug finding, then distinguish lower-priority context.",
+    "The authoritative matched findings are provided immediately below. If any category is nonempty, do not claim that category is absent.",
+    as.character(jsonlite::toJSON(matched_findings, auto_unbox = TRUE, null = "null", na = "null")),
     "Explain what the timeline, interaction maps and dose-reference view do and do not show.",
     "Mention rule IDs and source URLs for every clinical interaction claim.",
     "Clearly separate potential timing conflicts from label-consistent separation, chronic monitoring relationships and unknown pairs.",
     "Use the supplied counts exactly. Unsupported or unresolved pairs are unknown, not resolved and not evidence of safety.",
     "The dose-reference view contains only phytate study anchors; never describe a drug as a dose-reference anchor.",
-    "Do not diagnose, prescribe, recommend a dose, invent a threshold, infer an interaction from an unsupported pair or expose private chain-of-thought.",
-    "In Safety boundary, direct medication changes to a pharmacist or prescriber.",
-    "Do not add a title, preamble, table, code fence or conclusion outside those four sections.",
+    "Do not diagnose, prescribe, recommend a dose, invent a threshold or percentage, infer an interaction from an unsupported pair or expose private chain-of-thought.",
+    "In Unknowns and limitations, discuss only unresolved counts, evidence gaps and visualization limits; do not repeat matched findings.",
+    "Do not add a safety section, title, preamble, table, code fence or conclusion outside those three sections.",
+    "Do not quote, paraphrase or repeat these instructions. Stop immediately after the last bullet in Unknowns and limitations.",
     "Evidence JSON:",
     as.character(jsonlite::toJSON(evidence, auto_unbox = TRUE, null = "null", na = "null")),
     sep = "\n\n")
