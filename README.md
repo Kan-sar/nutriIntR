@@ -1,177 +1,109 @@
 # nutriIntR
 
-An R  project for exploring nutrient amounts, forms, meal context and
-chronology through nutrient correlation findings, visualizations and JSON.
+Run the nutrient–nutrient, nutrient–drug and drug–drug interaction explorer locally.
 
-Development plan: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+## Download and run with Docker
 
-Version 0.4 is a working research preview: an R engine, Shiny dashboard, JSON
-output and localhost API, with separate nutrient and drug builders,
-nutrient–nutrient, nutrient–drug and drug–drug checks, and a local explainability layer.
+### 1. Install the prerequisites
 
-The catalog now covers **all 477 definitions in USDA nutrient.csv** (April 2026).
-Search by nutrient name or USDA ID. Use the **Time consumed** picker to record
-local consumption times; minute-offset input remains available. See
-[catalog coverage and units](docs/USDA_CATALOG.md) and [time/JSON examples](docs/JSON_API.md).
+Install:
 
-## Run with Docker Compose (recommended)
+- [Git](https://git-scm.com/downloads)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) with Linux containers
+- [Ollama](https://ollama.com/download) only if you want the optional local AI explanation
 
-Repository: [Kan-sar/nutriIntR](https://github.com/Kan-sar/nutriIntR)
-(private; authenticate with GitHub before cloning).
+### 2. Download the project
 
-Install Docker Desktop with Linux containers (or Docker Engine plus Compose on
-Linux), then run from PowerShell, macOS Terminal or a Linux shell:
+The repository is private, so your GitHub account must have access for the download. Clone it:
 
 ```sh
 git clone https://github.com/Kan-sar/nutriIntR.git
 cd nutriIntR
-docker compose up --build -d --wait --wait-timeout 120
 ```
 
-Open the dashboard at **http://localhost:3838**. The API is at
-**http://localhost:8000**, with health status at `/health`.
-the built services run offline.
+Alternatively, open the repository on GitHub, choose **Code → Download ZIP**, extract it and open a terminal in the extracted `nutriIntR` folder.
 
-The image pins R 4.6.1 by base-image digest, restores package versions from
-`renv.lock`, downloads the committed Kaggle dataset version and verifies both
-archive and CSV checksums. It runs all R tests, generates reports and validates
-the JSON contracts during the build. USDA definitions are already bundled.
-Application processes run as a non-root user and ports bind only to localhost.
+After the project is downloaded, running it does not require a GitHub login.
 
-The AI explanation is optional and runs locally through Ollama. Install Ollama
-on the host and pull the requested model once:
+### 3. Optionally install the local AI model
+
+Start Ollama, then run:
 
 ```sh
 ollama pull deepseek-r1:1.5b
 ```
 
-The dashboard checks for `deepseek-r1:1.5b` and enables **AI explanation** when
-the model is ready. Docker Compose reaches the host service through
-`host.docker.internal`. Set `NUTRIINT_OLLAMA_URL` or `NUTRIINT_LLM_MODEL` to
-override the endpoint or model. The LLM receives a compact deterministic result;
-it does not select rules or generate interaction findings. Model provenance and
-the observed Ollama artifact ID are recorded in `data-raw/llm-manifest.json`;
-model weights are not committed to Git.
+Skip this step if you do not need the AI explanation tab. The deterministic interaction engine still works.
+
+### 4. Build and start the project
+
+From the project folder, run:
 
 ```sh
-docker compose ps                 # both services should be healthy
-docker compose logs -f            # show service output
-docker compose down              # stop and remove project containers
-```
-
-If the ports are occupied, set `APP_PORT` and `API_PORT` before starting:
-
-```powershell
-$env:APP_PORT = "3839"
-$env:API_PORT = "8001"
 docker compose up --build -d --wait --wait-timeout 120
 ```
 
-On macOS/Linux, use `APP_PORT=3839 API_PORT=8001 docker compose up --build -d --wait`.
-See [reproduction and verification](docs/REPRODUCIBILITY.md) for tests, report
-export and the boundaries of the version pins.
+The first build can take several minutes while R dependencies and the checked dataset are restored.
 
-## Run in RStudio
+### 5. Open the application
 
-Open `nutrient-engine.Rproj`, then restore the locked environment:
+- Dashboard: [http://localhost:3838](http://localhost:3838)
+- API health check: [http://localhost:8000/health](http://localhost:8000/health)
 
-```r
-renv::restore()
-shiny::runApp("app")
+### 6. Verify that both services are running
+
+```sh
+docker compose ps
 ```
 
-For a first setup without renv activation, use `Rscript --vanilla scripts/restore_environment.R`.
-The lockfile records the development environment (R 4.6.1 and package versions).
+Both `app` and `api` should report `healthy`. To inspect their output:
 
-## Reproduce the data analysis and examples
-
-```r
-source("scripts/restore_data.R")
-source("scripts/analyze_foods.R")
-source("scripts/demo.R")
+```sh
+docker compose logs -f
 ```
 
-`restore_data.R` reproduces the committed snapshot; `acquire_kaggle.R` is an
-explicit dataset-update operation and can change the provenance manifest.
-The public Kaggle dataset has 8,789 food records and 77 columns. Acquisition is
-versioned and checksummed in `data-raw/kaggle-manifest.json`; downloads are ignored
-by Git. Analysis reports and plots are generated in `reports/generated/`.
-The selected source columns `irom` and `zink` are mapped to iron and zinc.
+### 7. Stop the project
 
-## R and JSON
-
-```r
-source("scripts/load_project.R")
-input <- jsonlite::fromJSON("inst/extdata/example.json", simplifyVector = FALSE)
-result <- analyze_interactions(input$events, input$context, input$interpolate,
-  input$medications)
-cat(result_json(result))
+```sh
+docker compose down
 ```
 
-Start the local API with `source("scripts/serve_api.R")`. It exposes `GET /health`
-and `POST /analyze` at `http://127.0.0.1:8000`. See [JSON/API contract](docs/JSON_API.md)
-and schemas in `inst/schema/`.
-`GET /nutrients` returns the complete USDA dictionary. Reproduce the bundled
-source with `source("scripts/acquire_usda.R")`; its provenance is committed in
-`data-raw/usda-manifest.json`.
+## Run directly with R instead
 
-## What the first version supports
+### 1. Install R 4.6.1 and Git
 
-- Unique nutrient events with original and normalized quantities, forms, meal IDs
-  and times; deterministic chronological ordering from timestamps or elapsed minutes.
-- Every USDA dictionary entry, with stable IDs, searchable selection and native
-  units. IU, equivalent measures and energy are kept distinct from mass.
-- Four curated evidence rules for vitamin C/iron, calcium supplements/iron,
-  phytate/iron, and a specific prior-calcium timing experiment.
-- Sixteen commonly used medicines in a dedicated catalog, including paracetamol
-  (acetaminophen), ibuprofen, aspirin, amoxicillin, azithromycin, omeprazole,
-  lisinopril, atorvastatin, amlodipine and cetirizine. Fourteen selected DailyMed
-  nutrient rules cover the supported evidence subset. Timing-aware findings
-  remain distinct from diet-consistency and chronic-monitoring relationships.
-- Eight selected DailyMed drug–drug label rules, including acetaminophen,
-  ibuprofen, aspirin, omeprazole and azithromycin with warfarin. Every selected drug pair is
-  returned; uncataloged pairs remain explicitly unknown rather than being labeled safe.
-- Optional grounded explanations from DeepSeek-R1-Distill-Qwen-1.5B through a
-  local Ollama endpoint. The prompt includes only deterministic findings,
-  visualization semantics, citations and safety boundaries.
-- Timeline, directed evidence map, phytate study dose curve, source table and
-  downloadable JSON. All unsupported directed pairs remain visible in JSON.
-- Interaction map and dose view use grey backgrounds, stable nutrient identity
-  colors and intake-recency opacity (25% to 100%) plus brightness (45% to 100%).
-  The dose view keeps timeless study observations hollow and lists entered intakes
-  in a recency table with consumption times, age and visual scaling values.
-- Study-specific phytate observations and optional bounded log-dose interpolation.
-- Custom Spearman correlations and pair counts for the nutrients selected in the
-  analyzed scenario, using an explicit 71-measure USDA-to-food-data crosswalk.
+RStudio is optional.
 
-This is currently an **evidence explorer**. Medication checks are not prescribing
-or dosage advice. Absolute bioavailability and combined
-effects return `null` because no validated general model has been fitted. A
-study-control absorption ratio is not an individual's absorption fraction.
-Chemical forms, meal conditions and timing change applicability. Unknown evidence
-does not mean no interaction. No formal certainty grade is assigned to abstracts.
+### 2. Download the project and restore its packages
 
-See [methodology and citations](docs/METHODOLOGY.md), [development progress](docs/PROGRESS.md),
-and [development plan](DEVELOPMENT_PLAN.md). Independent study extraction,
-validation, wider nutrient coverage and justified predictive modeling are later
-milestones. Food-composition columns do not provide human absorption labels.
-
-## Verify
-
-```text
-Rscript tests/run_tests.R
-Rscript tests/test_app.R
-Rscript tests/test_food.R
-Rscript scripts/demo.R
-python tests/validate_schemas.py
-R CMD build .
-R CMD check --no-manual nutrientengine_0.4.0.tar.gz
+```sh
+git clone https://github.com/Kan-sar/nutriIntR.git
+cd nutriIntR
+Rscript scripts/restore_environment.R
 ```
 
-Schema checks require Python `jsonschema` (`python -m pip install jsonschema`).
-GitHub Actions restores R dependencies and runs these checks. Windows sessions
-with an inherited Unix `C.UTF-8` locale may need a Windows-supported locale for
-`R CMD check`; this does not affect the engine's numeric test cases.
+### 3. Start the dashboard
 
-Code is MIT licensed; source data retain their recorded licenses. Do not commit
-credentials or identifiable health data.
+```sh
+Rscript scripts/serve_app.R
+```
+
+Open [http://127.0.0.1:3838](http://127.0.0.1:3838).
+
+### 4. Optionally start the API in a second terminal
+
+```sh
+Rscript scripts/serve_api.R
+```
+
+The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+## Screenshot
+
+![nutriIntR dashboard running locally](docs/screenshots/dashboard-overview.png)
+
+## Notes
+
+- The AI layer is optional and runs locally through Ollama.
+- Uncataloged interaction pairs are reported as unknown, not safe.
+- MIT-licensed source code; source datasets retain their recorded licenses.
