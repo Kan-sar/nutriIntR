@@ -1,4 +1,4 @@
-# Explicit source-column crosswalk. No fuzzy matching between distinct measures.
+
 food_nutrient_columns <- function() {
   c(`1003` = "protein", `1004` = "fat", `1005` = "carbohydrate", `1007` = "ash",
     `1008` = "calories", `1010` = "sucrose", `1011` = "glucose", `1012` = "fructose",
@@ -36,7 +36,6 @@ nutrient_display_names <- function(catalog) {
     `1180` = "Choline (total)", `1177` = "Folate (total)")
   found <- as.character(catalog$id) %in% names(simple)
   labels[found] <- unname(simple[as.character(catalog$id[found])])
-  # Preserve ID disambiguation only where names would otherwise be identical.
   repeated <- duplicated(labels) | duplicated(labels, fromLast = TRUE)
   labels[repeated] <- paste0(labels[repeated], " [", catalog$id[repeated], "]")
   labels
@@ -47,7 +46,6 @@ parse_food_amount <- function(x, unit, bare = FALSE) {
   unit <- normalize_unit(unit)
   mass <- c(g = 1, mg = .001, ug = .000001, mcg = .000001)
   value <- rep(NA_real_, length(x))
-  # A bare zero is unambiguous in every supported measure.
   value[!is.na(x) & x == "0"] <- 0
   if (bare) {
     valid <- !is.na(x) & grepl("^[0-9]+(\\.[0-9]+)?$", x)
@@ -77,7 +75,6 @@ selected_food_correlations <- function(events, raw, catalog = nutrient_catalog()
   unavailable <- selected$name[!available]
   if (any(is.na(ids))) unavailable <- c(unavailable, unique(events$nutrient_name[is.na(events$usda_nutrient_id)]))
   selected <- selected[available, , drop = FALSE]; columns <- columns[available]
-  # All included observations have a common, explicitly declared serving basis.
   raw <- raw[!is.na(raw$serving_size) & trimws(raw$serving_size) == "100 g", , drop = FALSE]
   clean <- matrix(NA_real_, nrow(raw), nrow(selected))
   for (i in seq_len(nrow(selected))) clean[, i] <- parse_food_amount(raw[[columns[i]]],
