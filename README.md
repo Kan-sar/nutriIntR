@@ -68,35 +68,92 @@ docker compose logs -f
 docker compose down
 ```
 
-## Run directly with R instead
+## Run with RStudio
 
-### 1. Install R 4.6.1 and Git
+### 1. Install the prerequisites
 
-RStudio is optional.
+Install:
 
-### 2. Download the project and restore its packages
+- [R 4.6.1](https://cran.r-project.org/)
+- [RStudio Desktop](https://posit.co/download/rstudio-desktop/)
+- [Git](https://git-scm.com/downloads) if you want to clone instead of downloading a ZIP
+- [Ollama](https://ollama.com/download) only if you want the optional local AI explanation
 
-```sh
-git clone https://github.com/Kan-sar/nutriIntR.git
-cd nutriIntR
-Rscript scripts/restore_environment.R
+Restart RStudio after installing R.
+
+### 2. Download the project
+
+The repository is private, so your GitHub account must have access for the download. Choose one method:
+
+**Clone with Git:**
+
+1. Open RStudio.
+2. Select **File → New Project → Version Control → Git**.
+3. Enter `https://github.com/Kan-sar/nutriIntR.git` as the repository URL.
+4. Choose a local folder and select **Create Project**.
+
+**Download a ZIP:**
+
+1. Open the repository on GitHub and select **Code → Download ZIP**.
+2. Extract the ZIP to a permanent folder.
+3. In RStudio, select **File → Open Project**.
+4. Open `nutrient-engine.Rproj` from the extracted folder.
+
+After the project is downloaded, running it does not require a GitHub login.
+
+### 3. Confirm that the project is open
+
+The RStudio Console should show the project directory when you run:
+
+```r
+getwd()
 ```
 
-### 3. Start the dashboard
+The displayed folder should contain `nutrient-engine.Rproj`. If it does not, open that project file before continuing.
 
-```sh
-Rscript scripts/serve_app.R
+### 4. Restore the R packages
+
+In the RStudio Console, run:
+
+```r
+source("scripts/restore_environment.R")
 ```
 
-Open [http://127.0.0.1:3838](http://127.0.0.1:3838).
+Type `y` if R asks to install or activate `renv`. The first restore can take several minutes. Wait until the `>` prompt returns without an error.
 
-### 4. Optionally start the API in a second terminal
+### 5. Optionally install the local AI model
+
+Start Ollama, then open the RStudio Terminal using **Tools → Terminal → New Terminal** and run:
+
+```sh
+ollama pull deepseek-r1:1.5b
+```
+
+Skip this step if you do not need AI explanations. The interaction engine works without Ollama.
+
+### 6. Start the dashboard
+
+In the RStudio Console, run:
+
+```r
+source("scripts/serve_app.R")
+```
+
+Open [http://127.0.0.1:3838](http://127.0.0.1:3838) in a browser. Keep the Console running while using the dashboard.
+
+### 7. Optionally start the API
+
+Open **Tools → Terminal → New Terminal** and run:
 
 ```sh
 Rscript scripts/serve_api.R
 ```
 
-The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+Verify it at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
+
+### 8. Stop the project
+
+Click the red **Stop** button above the RStudio Console to stop the dashboard. In the API terminal, press **Ctrl+C** to stop the API.
 
 ## Screenshot
 
