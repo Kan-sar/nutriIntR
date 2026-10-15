@@ -1,4 +1,3 @@
-# Local clock times are compared directly: no timezone conversion is performed.
 parse_consumed_at <- function(value) {
   if (!is.character(value) || anyNA(value) || any(!grepl(
     "^([0-9]{4}-[0-9]{2}-[0-9]{2}T)?[0-9]{2}:[0-9]{2}(:[0-9]{2})?$", value)))
@@ -32,7 +31,7 @@ normalize_chronology <- function(events) {
     if (anyNA(events$consumed_at) || any(!nzchar(events$consumed_at)))
       stop("Use consumed_at for every event in a clock-time scenario; do not mix clock times and offsets.")
     seconds <- parse_consumed_at(events$consumed_at)
-    # Consumption times are authoritative when offsets are also supplied.
+
     events$time_minutes <- (seconds - min(seconds)) / 60
     events$consumed_at_local <- format_local_time(seconds, all(grepl("T", events$consumed_at, fixed = TRUE)))
   } else {
