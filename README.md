@@ -95,7 +95,7 @@ and schemas in `inst/schema/`.
 source with `source("scripts/acquire_usda.R")`; its provenance is committed in
 `data-raw/usda-manifest.json`.
 
-## What the first version supports
+## What this version supports
 
 - Unique nutrient events with original and normalized quantities, forms, meal IDs
   and times; deterministic chronological ordering from timestamps or elapsed minutes.
