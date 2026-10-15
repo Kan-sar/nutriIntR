@@ -95,6 +95,34 @@ strip_reasoning_trace <- function(text) {
   trimws(text)
 }
 
+format_llm_markdown <- function(text) {
+  text <- strip_reasoning_trace(text)
+  text <- gsub("\r\n?", "\n", text)
+  text <- gsub("(?m)^\\s*```(?:markdown|md|text)?\\s*$", "", text, perl = TRUE)
+  headings <- c(
+    "Key findings" = "Key findings",
+    "What the visualizations show" = "What the visualizations show",
+    "Unknowns and limitations" = "Unknowns and limitations",
+    "Safety boundary" = "Safety boundary"
+  )
+  for (label in names(headings)) {
+    pattern <- paste0("(?im)^\\s*(?:\\*\\*)?", label,
+      "\\s*:?(?:\\*\\*)?\\s*:?\\s*$")
+    text <- gsub(pattern, paste0("## ", headings[[label]]), text, perl = TRUE)
+  }
+  text <- sub("(?is)^\\s*(?:here(?:'s| is) (?:a |the )?(?:grounded )?(?:analysis|explanation|summary)[.:]?\\s*)",
+    "", text, perl = TRUE)
+  text <- gsub("\n[ \t]+\n", "\n\n", text)
+  text <- gsub("\n{3,}", "\n\n", text)
+  if (!grepl("(?m)^##\\s+", text, perl = TRUE)) text <- paste("## Explanation", text, sep = "\n\n")
+  if (!grepl("(?im)^##\\s+Safety boundary\\s*$", text, perl = TRUE)) {
+    text <- paste(text,
+      "## Safety boundary\n\nThis is an evidence-exploration summary, not medical advice. Confirm medication changes with a pharmacist or prescriber.",
+      sep = "\n\n")
+  }
+  trimws(text)
+}
+
 llm_generation_payload <- function(prompt) {
   list(model = llm_model_name(), prompt = prompt, stream = FALSE, think = FALSE,
     options = list(temperature = 0.1, num_predict = 700))
@@ -106,21 +134,28 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
   evidence <- explainability_payload(result)
   prompt <- paste(
     "Explain this NutriInt-R analysis to a research user using only the supplied JSON evidence.",
-    "Start with the most important matched nutrient-nutrient, nutrient-drug or drug-drug finding.",
-    "Then interpret what the timeline, interaction map and dose-reference view do and do not show.",
+    "Return concise Markdown with exactly these four level-2 headings in this order:",
+    "## Key findings",
+    "## What the visualizations show",
+    "## Unknowns and limitations",
+    "## Safety boundary",
+    "Under each heading use short bullet points. Use at most two sentences per bullet.",
+    "Start Key findings with the most important matched nutrient-nutrient, nutrient-drug or drug-drug finding.",
+    "Explain what the timeline, interaction maps and dose-reference view do and do not show.",
     "Mention rule IDs and source URLs for every clinical interaction claim.",
     "Clearly separate potential timing conflicts from label-consistent separation, chronic monitoring relationships and unknown pairs.",
     "Use the supplied counts exactly. Unsupported or unresolved pairs are unknown, not resolved and not evidence of safety.",
     "The dose-reference view contains only phytate study anchors; never describe a drug as a dose-reference anchor.",
     "Do not diagnose, prescribe, recommend a dose, invent a threshold, infer an interaction from an unsupported pair or expose private chain-of-thought.",
-    "End with a short Safety boundary section that directs medication changes to a pharmacist or prescriber.",
+    "In Safety boundary, direct medication changes to a pharmacist or prescriber.",
+    "Do not add a title, preamble, table, code fence or conclusion outside those four sections.",
     "Evidence JSON:",
     as.character(jsonlite::toJSON(evidence, auto_unbox = TRUE, null = "null", na = "null")),
     sep = "\n\n")
   response <- ollama_request("/api/generate", llm_generation_payload(prompt), timeout_seconds)
   if (is.null(response$response) || !nzchar(trimws(response$response)))
     stop("The model returned an empty explanation.")
-  list(text = strip_reasoning_trace(response$response), model = llm_model_name(),
+  list(text = format_llm_markdown(response$response), model = llm_model_name(),
     endpoint = llm_endpoint(), generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
     grounded_rule_ids = unique(c(vapply(evidence$nutrient_findings, function(x) x$rule_id, character(1)),
       vapply(evidence$medication_findings, function(x) x$rule_id, character(1)),

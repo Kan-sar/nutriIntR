@@ -141,6 +141,10 @@ check(length(payload$drug_findings) == 1L &&
   "LLM payload contains only grounded drug-drug matches")
 check(strip_reasoning_trace("<think>private</think>Visible") == "Visible",
   "reasoning trace is removed from displayed model output")
+formatted_llm <- format_llm_markdown("```markdown\n**Key findings:**\n- Grounded result.\n```")
+check(grepl("^## Key findings", formatted_llm) &&
+  grepl("## Safety boundary", formatted_llm) && !grepl("```", formatted_llm, fixed = TRUE),
+  "LLM output is normalized into a safe report structure")
 generation_payload <- llm_generation_payload("Explain the evidence.")
 check(identical(generation_payload$think, FALSE) && identical(generation_payload$stream, FALSE),
   "Ollama generation disables private reasoning output")

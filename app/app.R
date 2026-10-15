@@ -150,7 +150,7 @@ ui <- fluidPage(
         tabPanel("Food correlations", view_heading("Your nutrients across foods", "A custom correlation matrix for the nutrients in your analyzed scenario."), uiOutput("food")),
         tabPanel("AI explanation", view_heading("Grounded explanation", "DeepSeek explains the deterministic findings and visual encodings without creating new interaction claims."),
           uiOutput("llm_status"), actionButton("explain", "Generate explanation", class = "btn-primary"),
-          uiOutput("llm_error"), verbatimTextOutput("llm_explanation"),
+          uiOutput("llm_error"), uiOutput("llm_explanation"),
           p(class = "note", "Model output can be wrong. Verify medication decisions against the linked label and a qualified clinician.")),
         tabPanel("JSON", view_heading("Structured result", "The same analysis, ready for reproducible workflows and downstream tools."), verbatimTextOutput("json"))
       ))
@@ -357,11 +357,20 @@ server <- function(input, output, session) {
     if (is.null(explanation_error())) return(NULL)
     div(class = "status status-error", role = "alert", explanation_error())
   })
-  output$llm_explanation <- renderText({
+  output$llm_explanation <- renderUI({
     item <- explanation()
-    if (is.null(item)) return("Select Generate explanation after analyzing a scenario.")
-    paste0(item$text, "\n\nModel: ", item$model, "\nGrounded rule IDs: ",
-      if (length(item$grounded_rule_ids)) paste(item$grounded_rule_ids, collapse = ", ") else "none")
+    if (is.null(item)) return(div(class = "llm-placeholder",
+      "Select Generate explanation after analyzing a scenario."))
+    safe_markdown <- htmltools::htmlEscape(item$text)
+    tagList(
+      div(class = "llm-report", shiny::markdown(safe_markdown)),
+      div(class = "llm-meta",
+        span(class = "llm-meta-label", "Generated locally"),
+        span(class = "llm-meta-value", item$model),
+        span(class = "llm-meta-label", "Grounded rules"),
+        span(class = "llm-meta-value",
+          if (length(item$grounded_rule_ids)) paste(item$grounded_rule_ids, collapse = " · ") else "none"))
+    )
   })
   output$json <- renderText({req(current()); as.character(result_json(current()))})
   output$download <- downloadHandler(filename = function() "nutrient-interactions.json",
