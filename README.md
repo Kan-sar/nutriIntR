@@ -2,6 +2,18 @@
 
 Run the nutrient–nutrient, nutrient–drug and drug–drug interaction explorer locally.
 
+## Manage your intakes
+
+The dashboard starts empty, with no sample nutrients, medications, doses or times.
+Add your entries, then use **Your intakes** to select an entry and choose **Edit
+selected intake** or **Remove selected intake**. Nutrients can be edited by name,
+form, amount, unit, meal and time; medications by name, route and time. Edits
+preserve intake IDs. Changed drafts clear the previous results; click **Analyze
+scenario** to calculate again. **Clear scenario** removes all entries and resets
+the entry fields. Examples remain available as JSON files under `inst/extdata/`,
+but are not automatically loaded. Analysis currently requires at least one
+nutrient; medication-only drafts can be built and edited before adding a nutrient.
+
 ## Download and run with Docker
 
 ### 1. Install the prerequisites

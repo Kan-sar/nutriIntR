@@ -4,6 +4,8 @@ for (file in list.files(file.path(project_root, "R"), pattern = "\\.R$", full.na
 # Development source lookup is relative to the app working directory.
 engine_file <- function(name) file.path(project_root, "inst", "extdata", name)
 example_text <- paste(readLines(engine_file("example-clock.json")), collapse = "\n")
+empty_text <- as.character(jsonlite::toJSON(list(context = list(population = "adult", meal_state = "fed"),
+  events = list(), medications = list()), auto_unbox = TRUE, pretty = TRUE))
 catalog <- nutrient_catalog()
 choice_labels <- nutrient_display_names(catalog)
 choice_order <- order(tolower(choice_labels))
@@ -11,10 +13,10 @@ nutrient_choices <- stats::setNames(catalog$key[choice_order], choice_labels[cho
 nutrient_choices <- c(nutrient_choices, "Phytate phosphorus" = "phytate")
 medication_data <- medication_catalog()
 medication_choices <- stats::setNames(medication_data$key, medication_data$name)
-clock_default <- "08:00"
+clock_default <- ""
 
 clock_input <- function(local) {
-  if (is.null(local) || !nzchar(local)) local <- clock_default
+  if (is.null(local) || !nzchar(local)) stop("Select a consumption time.")
   parse_consumed_at(local)
   local
 }
@@ -41,9 +43,10 @@ prepare_timing <- function(payload, mode, origin) {
       })
     }
   } else {
-    normalized <- normalize_events(payload$events)
+    normalized <- if (length(payload$events)) normalize_events(payload$events) else data.frame()
     normalized_medications <- normalize_medications(payload$medications)
-    aligned <- align_medication_chronology(normalized, normalized_medications)
+    aligned <- if (nrow(normalized)) align_medication_chronology(normalized, normalized_medications)
+      else list(events = normalized, medications = normalized_medications)
     normalized <- aligned$events
     normalized_medications <- aligned$medications
     payload$events <- lapply(payload$events, function(e) {
@@ -67,7 +70,8 @@ view_heading <- function(title, description) div(class = "view-heading", h2(titl
 ui <- fluidPage(
   title = "Nutrient Lab | Interaction engine",
   tags$head(tags$link(rel = "stylesheet", href = "style.css"),
-    tags$meta(name = "viewport", content = "width=device-width, initial-scale=1")),
+    tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
+    tags$script(src = "intakes.js")),
   tags$a(class = "skip-link", href = "#workspace", "Skip to results"),
   tags$header(class = "app-header",
     div(class = "brand", span(class = "brand-mark", "n"),
@@ -82,16 +86,17 @@ ui <- fluidPage(
       div(class = "section-title", span(class = "step-label", "01"), h2("Build your scenario")),
       p(class = "note", "Build one timeline with separate nutrient and drug selectors, then analyze all three pair types."),
       div(class = "composer-group nutrient-builder", h3("Add a nutrient"),
-        selectizeInput("nutrient", "Nutrient dropdown", nutrient_choices, selected = "iron"),
+        selectizeInput("nutrient", "Nutrient dropdown", c("Choose a nutrient" = "", nutrient_choices), selected = ""),
         div(class = "field-hint", textOutput("nutrient_hint")),
-        selectInput("form", "Chemical form", nutrient_forms("iron")),
-        fluidRow(column(6, numericInput("amount", "Amount", 6, min = 0)),
-                 column(6, selectInput("unit", "Unit", c("mg", "g", "mcg")))),
-        textInput("meal", "Meal label", "lunch"),
-        actionButton("add", "+ Add nutrient to draft", class = "btn-add")),
+        selectInput("form", "Chemical form", character()),
+        fluidRow(column(6, numericInput("amount", "Amount", NA_real_, min = 0)),
+                 column(6, selectInput("unit", "Unit", character()))),
+        textInput("meal", "Meal label", ""),
+        actionButton("add", "+ Add nutrient to draft", class = "btn-add",
+          onclick = "syncIntakeFields(['amount','meal','consumed_time','minute']);")),
       div(class = "field-divider", "Shared timing"),
       radioButtons("timing_mode", "Timing", c("Clock time" = "clock", "Minutes from start" = "offset"), selected = "clock", inline = TRUE),
-      conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", 0, min = 0)),
+      conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", NA_real_, min = 0)),
       conditionalPanel("input.timing_mode == 'clock'",
         tags$div(class = "form-group", tags$label(`for` = "consumed_time", "Time consumed"),
           tags$input(id = "consumed_time", type = "time", class = "form-control",
@@ -100,25 +105,27 @@ ui <- fluidPage(
         p(class = "field-hint", "Local time. All clock entries refer to the same day.")),
       div(class = "composer-group drug-builder", h3("Add a drug"),
         p(class = "note", "Drug checks use selected official-label rules and the same timeline."),
-        selectizeInput("drug", "Drug dropdown", medication_choices),
+        selectizeInput("drug", "Drug dropdown", c("Choose a medication" = "", medication_choices), selected = ""),
         selectInput("medication_route", "Route", c("oral"), selected = "oral"),
-        conditionalPanel("input.timing_mode == 'offset'", numericInput("medication_minute", "Medication minute", 0, min = 0)),
+        conditionalPanel("input.timing_mode == 'offset'", numericInput("medication_minute", "Medication minute", NA_real_, min = 0)),
         conditionalPanel("input.timing_mode == 'clock'",
           tags$div(class = "form-group", tags$label(`for` = "medication_time", "Medication time"),
             tags$input(id = "medication_time", type = "time", class = "form-control",
-              value = "08:30", step = "60",
+              value = "", step = "60",
               onchange = "Shiny.setInputValue('medication_time', this.value, {priority:'event'});"))),
-        actionButton("add_medication", "+ Add drug to draft", class = "btn-add")),
+        actionButton("add_medication", "+ Add drug to draft", class = "btn-add",
+          onclick = "syncIntakeFields(['medication_time','medication_minute']);")),
       tags$details(class = "json-editor", tags$summary("Advanced / edit scenario JSON"),
         p(class = "note", "Edit or remove events and change study context here. Use dated local times for overnight scenarios."),
-        textAreaInput("scenario", "Scenario JSON", example_text, height = "260px")),
+        textAreaInput("scenario", "Scenario JSON", empty_text, height = "260px")),
       div(class = "composer-actions", textOutput("draft_summary"),
-        actionButton("analyze", "Analyze scenario", class = "btn-primary"),
-        actionButton("reset", "Restore example", class = "btn-reset"))
+        actionButton("analyze", "Analyze scenario", class = "btn-primary", onclick = "syncIntakeFields(['scenario']);"),
+        actionButton("reset", "Clear scenario", class = "btn-reset"))
     ),
     tags$main(id = "workspace", tabindex = "-1", class = "results-workspace",
       div(class = "workspace-toolbar", div(class = "section-title", span(class = "step-label", "02"), h2("Explore results")),
         downloadButton("download", "Export JSON")),
+      uiOutput("draft_manager"),
       uiOutput("status"),
       uiOutput("metrics"),
       div(class = "analysis-card",
@@ -161,6 +168,11 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   observeEvent(input$nutrient, {
+    if (!nzchar(input$nutrient)) {
+      updateSelectInput(session, "form", choices = character())
+      updateSelectInput(session, "unit", choices = character())
+      return()
+    }
     selected <- resolve_nutrient(input$nutrient, catalog)
     forms <- nutrient_forms(selected$key, selected$default_form)
     updateSelectInput(session, "form", choices = forms, selected = forms[1])
@@ -182,10 +194,144 @@ server <- function(input, output, session) {
   error <- reactiveVal(NULL)
   explanation <- reactiveVal(NULL)
   explanation_error <- reactiveVal(NULL)
-  analyzed_text <- reactiveVal(example_text)
+  analyzed_text <- reactiveVal(NULL)
+  draft_text <- reactiveVal(empty_text)
+  observeEvent(input$scenario, {
+    if (!identical(input$scenario, draft_text())) {
+      draft_text(input$scenario)
+      current(NULL); error(NULL); explanation(NULL); explanation_error(NULL)
+    }
+  })
+  draft_payload <- reactive({
+    payload <- jsonlite::fromJSON(draft_text(), simplifyVector = FALSE)
+    if (is.null(payload$context) || is.null(payload$events)) stop("Supply context and events.")
+    if (is.null(payload$medications)) payload$medications <- list()
+    payload
+  })
+  validate_draft <- function(payload) {
+    nutrients <- if (length(payload$events)) normalize_events(payload$events) else data.frame()
+    drugs <- normalize_medications(payload$medications)
+    if (nrow(nutrients)) align_medication_chronology(nutrients, drugs)
+    invisible(payload)
+  }
+  publish_draft <- function(payload) {
+    validate_draft(payload)
+    text <- as.character(result_json(payload))
+    draft_text(text)
+    updateTextAreaInput(session, "scenario", value = text)
+    current(NULL); error(NULL); explanation(NULL); explanation_error(NULL)
+  }
+  draft_entries <- reactive({
+    payload <- draft_payload()
+    entries <- list()
+    for (collection in c("events", "medications")) for (item in payload[[collection]]) {
+      nutrient <- collection == "events"
+      label <- if (nutrient) resolve_nutrient(item$nutrient, catalog)$name else resolve_medication(item$medication)$name
+      time <- if (!is.null(item$consumed_at)) item$consumed_at else paste0("+", item$time_minutes, " min")
+      entries[[length(entries) + 1L]] <- list(token = paste(collection, item$id, sep = ":"),
+        collection = collection, id = item$id, item = item,
+        label = paste(if (nutrient) "Nutrient:" else "Medication:", label,
+          if (nutrient) paste(item$amount, item$unit) else item$route, " / ", time, " / ", item$id))
+    }
+    entries
+  })
+  output$draft_manager <- renderUI({
+    tryCatch({
+      entries <- draft_entries()
+      if (!length(entries)) return(div(class = "intake-manager", h3("Your intakes"),
+        p(class = "note", "No intakes yet. Add a nutrient or medication to begin.")))
+      choices <- stats::setNames(vapply(entries, function(e) e$token, character(1)),
+        vapply(entries, function(e) e$label, character(1)))
+      selected <- isolate(input$draft_item)
+      if (is.null(selected) || !selected %in% choices) selected <- unname(choices[1])
+      div(class = "intake-manager", h3("Your intakes"),
+        selectInput("draft_item", "Choose an intake to edit or remove", choices, selected = selected),
+        div(class = "intake-actions", actionButton("edit_item", "Edit selected intake"),
+          actionButton("remove_item", "Remove selected intake", class = "btn-remove")))
+    }, error = function(e) div(class = "intake-manager", p("Correct the scenario JSON to manage intakes.")))
+  })
+  selected_entry <- function() {
+    entries <- draft_entries()
+    matches <- Filter(function(e) identical(e$token, input$draft_item), entries)
+    if (length(matches) != 1L) stop("Select an intake first.")
+    matches[[1]]
+  }
+  editing <- reactiveVal(NULL)
+  observeEvent(input$remove_item, {
+    tryCatch({
+      entry <- selected_entry(); payload <- draft_payload()
+      payload[[entry$collection]] <- Filter(function(e) e$id != entry$id, payload[[entry$collection]])
+      publish_draft(payload)
+      showNotification("Intake removed. Analyze to refresh results.", type = "message")
+    }, error = function(e) showNotification(conditionMessage(e), type = "error"))
+  })
+  observeEvent(input$edit_item, {
+    tryCatch({
+      entry <- selected_entry(); item <- entry$item; nutrient <- entry$collection == "events"
+      editing(entry)
+      fields <- if (nutrient) {
+        resolved <- resolve_nutrient(item$nutrient, catalog)
+        tagList(selectizeInput("edit_nutrient", "Nutrient", nutrient_choices, selected = resolved$key),
+          selectInput("edit_form", "Chemical form", unique(c(item$form, nutrient_forms(resolved$key, resolved$default_form))), selected = item$form),
+          numericInput("edit_amount", "Amount", item$amount, min = 0),
+          selectInput("edit_unit", "Unit", nutrient_units(resolved$canonical_unit, resolved$unit_family), selected = item$unit),
+          textInput("edit_meal", "Meal label", item$meal_id))
+      } else {
+        resolved <- resolve_medication(item$medication)
+        choices <- medication_choices
+        if (!resolved$key %in% choices) choices <- c(choices, stats::setNames(resolved$key, resolved$name))
+        tagList(selectizeInput("edit_drug", "Medication", choices, selected = resolved$key),
+          selectInput("edit_route", "Route", unique(c(item$route, "oral")), selected = item$route))
+      }
+      clock <- !is.null(item$consumed_at) && nzchar(item$consumed_at)
+      timing <- if (clock) tagList(
+        textInput("edit_date", "Date (optional, YYYY-MM-DD)", if (grepl("T", item$consumed_at, fixed = TRUE)) substr(item$consumed_at, 1, 10) else ""),
+        tags$label(`for` = "edit_time", "Time consumed"),
+        tags$input(id = "edit_time", type = "time", class = "form-control", step = "1",
+          value = sub("^.*T", "", item$consumed_at),
+          onchange = "Shiny.setInputValue('edit_time', this.value, {priority:'event'});"))
+      else numericInput("edit_minute", "Minutes from scenario start", item$time_minutes, min = 0)
+      showModal(modalDialog(title = "Edit intake", fields, timing, easyClose = FALSE,
+        footer = tagList(modalButton("Cancel"), actionButton("save_item", "Save changes", class = "btn-primary",
+          onclick = "syncIntakeFields(['edit_nutrient','edit_form','edit_amount','edit_unit','edit_meal','edit_drug','edit_route','edit_date','edit_time','edit_minute']);"))))
+    }, error = function(e) showNotification(conditionMessage(e), type = "error"))
+  })
+  observeEvent(input$edit_nutrient, {
+    req(editing(), input$edit_nutrient)
+    resolved <- resolve_nutrient(input$edit_nutrient, catalog)
+    original <- editing()$item
+    same <- identical(resolved$key, resolve_nutrient(original$nutrient, catalog)$key)
+    forms <- unique(c(if (same) original$form, nutrient_forms(resolved$key, resolved$default_form)))
+    updateSelectInput(session, "edit_form", choices = forms, selected = forms[1])
+    updateSelectInput(session, "edit_unit", choices = nutrient_units(resolved$canonical_unit, resolved$unit_family),
+      selected = if (same) original$unit else resolved$canonical_unit)
+  })
+  observeEvent(input$save_item, {
+    tryCatch({
+      entry <- editing(); if (is.null(entry)) stop("Reopen the intake editor.")
+      payload <- draft_payload()
+      index <- which(vapply(payload[[entry$collection]], function(e) identical(e$id, entry$id), logical(1)))
+      if (length(index) != 1L || !identical(payload[[entry$collection]][[index]], entry$item))
+        stop("This intake changed while the editor was open. Cancel and reopen it.")
+      item <- entry$item
+      if (entry$collection == "events") {
+        item$nutrient <- input$edit_nutrient; item$form <- input$edit_form
+        item$amount <- input$edit_amount; item$unit <- input$edit_unit; item$meal_id <- input$edit_meal
+      } else {item$medication <- input$edit_drug; item$route <- input$edit_route}
+      if (!is.null(entry$item$consumed_at) && nzchar(entry$item$consumed_at)) {
+        time <- if (is.null(input$edit_time)) sub("^.*T", "", entry$item$consumed_at) else clock_input(input$edit_time)
+        date <- trimws(input$edit_date)
+        item$consumed_at <- paste0(if (nzchar(date)) paste0(date, "T") else "", time)
+        item$time_minutes <- NULL
+      } else item$time_minutes <- input$edit_minute
+      payload[[entry$collection]][[index]] <- item
+      publish_draft(payload); removeModal(); editing(NULL)
+      showNotification("Intake updated. Analyze to refresh results.", type = "message")
+    }, error = function(e) showNotification(conditionMessage(e), type = "error"))
+  })
   output$draft_summary <- renderText({
     tryCatch({
-      draft <- jsonlite::fromJSON(input$scenario, simplifyVector = FALSE)
+      draft <- draft_payload()
       paste(length(draft$events), "nutrients /", length(draft$medications), "drugs in draft")
     }, error = function(e) "Check draft JSON")
   })
@@ -194,17 +340,29 @@ server <- function(input, output, session) {
       if (nchar(text, type = "bytes") > 1024 * 1024) stop("Scenario exceeds 1 MB.")
       payload <- jsonlite::fromJSON(text, simplifyVector = FALSE)
       if (is.null(payload$context) || is.null(payload$events)) stop("Supply context and events.")
+      if (!length(payload$events)) {
+        current(NULL); error(NULL); explanation(NULL); explanation_error(NULL); return(invisible(NULL))
+      }
       flag <- if (is.null(payload$interpolate)) FALSE else payload$interpolate
       current(analyze_interactions(payload$events, payload$context, flag, payload$medications));
       error(NULL); analyzed_text(text); explanation(NULL); explanation_error(NULL)
     }, error = function(e) {current(NULL); error(conditionMessage(e))})
   }
-  observeEvent(TRUE, run(example_text), once = TRUE)
-  observeEvent(input$analyze, run(input$scenario))
-  observeEvent(input$reset, {updateTextAreaInput(session, "scenario", value = example_text); run(example_text)})
+  observeEvent(input$analyze, run(draft_text()))
+  observeEvent(input$reset, {
+    publish_draft(jsonlite::fromJSON(empty_text, simplifyVector = FALSE)); editing(NULL); removeModal()
+    updateSelectizeInput(session, "nutrient", selected = "")
+    updateSelectizeInput(session, "drug", selected = "")
+    updateNumericInput(session, "amount", value = NA_real_)
+    updateNumericInput(session, "minute", value = NA_real_)
+    updateNumericInput(session, "medication_minute", value = NA_real_)
+    updateTextInput(session, "meal", value = "")
+    session$sendCustomMessage("clear-intake-times", list())
+  })
   observeEvent(input$add, {
     tryCatch({
-      payload <- jsonlite::fromJSON(input$scenario, simplifyVector = FALSE)
+      payload <- draft_payload()
+      if (is.null(input$nutrient) || !nzchar(input$nutrient)) stop("Choose a nutrient.")
       existing <- vapply(payload$events, function(e) e$id, character(1))
       index <- length(existing) + 1L
       while (paste0("event_", index) %in% existing) index <- index + 1L
@@ -215,14 +373,14 @@ server <- function(input, output, session) {
         meal_id = input$meal)
       if (input$timing_mode == "clock") event$consumed_at <- origin else event$time_minutes <- input$minute
       payload$events <- append(payload$events, list(event))
-      normalize_events(payload$events)
-      updateTextAreaInput(session, "scenario", value = as.character(result_json(payload)))
+      publish_draft(payload)
       showNotification("Added to draft. Click Analyze scenario to refresh results.", type = "message")
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
   })
   observeEvent(input$add_medication, {
     tryCatch({
-      payload <- jsonlite::fromJSON(input$scenario, simplifyVector = FALSE)
+      payload <- draft_payload()
+      if (is.null(input$drug) || !nzchar(input$drug)) stop("Choose a medication.")
       if (is.null(payload$medications)) payload$medications <- list()
       existing <- vapply(payload$medications, function(e) e$id, character(1))
       index <- length(existing) + 1L
@@ -233,15 +391,16 @@ server <- function(input, output, session) {
         route = input$medication_route)
       if (input$timing_mode == "clock") item$consumed_at <- origin else item$time_minutes <- input$medication_minute
       payload$medications <- append(payload$medications, list(item))
-      aligned <- align_medication_chronology(normalize_events(payload$events), normalize_medications(payload$medications))
-      updateTextAreaInput(session, "scenario", value = as.character(result_json(payload)))
+      publish_draft(payload)
       showNotification("Medication added to the draft. Analyze to refresh results.", type = "message")
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
   })
   output$status <- renderUI({
     if (!is.null(error())) return(div(class = "status status-error", role = "alert", strong("Check scenario: "), error()))
-    req(current()); result <- current()
-    changed <- !is.null(input$scenario) && !identical(input$scenario, analyzed_text())
+    if (is.null(current())) return(div(class = "status", role = "status", `aria-live` = "polite",
+      strong("Build your scenario"), span("Add your intakes, then analyze. Analysis requires at least one nutrient.")))
+    result <- current()
+    changed <- !identical(draft_text(), analyzed_text())
     div(class = if (changed) "status status-draft" else "status", role = "status", `aria-live` = "polite",
       strong(if (changed) "Draft changed" else "Analysis ready"),
       span(if (changed) "Analyze to apply your edits. Results and export still reflect the last analyzed scenario."

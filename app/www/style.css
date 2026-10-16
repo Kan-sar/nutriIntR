@@ -54,6 +54,11 @@ textarea { font-family:Consolas,monospace!important; font-size:11px!important; r
 .btn-reset { border:0; background:transparent; color:var(--muted); padding:6px; }
 .composer>.field-hint { margin:16px 0 0; }
 .workspace-toolbar { display:flex; justify-content:space-between; align-items:center; margin:0 0 16px; gap:12px; }
+.intake-manager { background:white; border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-bottom:16px; }
+.intake-manager h3 { margin:0 0 12px; }
+.intake-manager .note { margin:0; }
+.intake-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.btn-remove { color:#923e35; border-color:#d6b4ae; }
 .status { padding:12px 15px; border:1px solid #ccdfd1; background:#eaf2eb; border-radius:8px; display:flex; align-items:baseline; gap:12px; font-size:12px; margin-bottom:17px; }
 .status strong { white-space:nowrap; font-weight:650; color:#215d3e; }
 .status span { color:#44624f; }
