@@ -156,6 +156,25 @@ llm_finding_rows <- function(evidence) {
   rows
 }
 
+llm_gap_rows <- function(evidence) {
+  lapply(seq_along(evidence$unaccounted_pairs), function(i) {
+    item <- evidence$unaccounted_pairs[[i]]
+    item$gap_id <- paste0("gap_", i)
+    item
+  })
+}
+
+validate_llm_gap_priority <- function(response, gaps) {
+  if (!length(gaps)) return(NULL)
+  value <- response$lead_gap_id
+  if (!is.character(value) || length(value) != 1L || is.na(value) || !nzchar(value))
+    stop("The AI did not select a coverage priority. Please try again.")
+  expected <- vapply(gaps, function(x) x$gap_id, character(1))
+  if (!value %in% expected)
+    stop("The AI selected an interaction outside the scenario. Please try again.")
+  value
+}
+
 llm_explanation_choices <- function(finding) {
   direction <- c(enhances = "The supplied evidence describes an enhancing relationship.",
     inhibits = "The supplied evidence describes an inhibiting relationship.",
@@ -192,7 +211,7 @@ validate_llm_findings <- function(response, findings) {
   ordered
 }
 
-format_grounded_explanation <- function(evidence, findings, generated) {
+format_grounded_explanation <- function(evidence, findings, generated, lead_gap_id = NULL) {
   human <- function(x) gsub("_", " ", x)
   intake_label <- function(id) {
     matches <- Filter(function(x) identical(x$id, id), evidence$events)
@@ -215,13 +234,26 @@ format_grounded_explanation <- function(evidence, findings, generated) {
       paste0("- **", plain(pair), " \u2014 ", human(f$status), "**: ", plain(generated[[i]]$explanation),
         scope_text, " (Rule `", f$rule_id, "`; [source](", f$source_url, ")).")
     }, character(1))
-  gap_bullets <- if (!length(evidence$unaccounted_pairs))
+  gaps <- llm_gap_rows(evidence)
+  gap_bullets <- if (!length(gaps))
     "- No unaccounted pairs are present in this scenario; this still does not establish that all interactions are covered." else
-    vapply(evidence$unaccounted_pairs, function(x) paste0("- **", plain(x$category), ": ",
-      plain(x$pair), " — ", human(x$status), "**: ", plain(x$reason),
-      " This is an explicit catalog gap or unresolved case; the AI does not infer that the pair is safe."), character(1))
+    {
+      gap_ids <- vapply(gaps, function(x) x$gap_id, character(1))
+      if (is.null(lead_gap_id) || !lead_gap_id %in% gap_ids) lead_gap_id <- gap_ids[[1]]
+      ordered_gaps <- c(gaps[match(lead_gap_id, gap_ids)], gaps[gap_ids != lead_gap_id])
+      first_gap <- ordered_gaps[[1]]
+      priority_call <- paste0("**AI coverage priority:** Investigate **",
+        plain(first_gap$pair), "** first. The complete list below covers all ",
+        length(ordered_gaps), " uncatalogued or unresolved pair(s).")
+      ordered_bullets <- vapply(seq_along(ordered_gaps), function(i) {
+        x <- ordered_gaps[[i]]
+        paste0(i, ". **", plain(x$pair), " — ", human(x$status),
+          "**: ", plain(x$reason))
+      }, character(1))
+      c(priority_call, ordered_bullets)
+    }
   paste(c("## Bottom line", bullets, "", "## Uncatalogued and unresolved interactions",
-    "The local AI reviews coverage gaps separately from matched evidence. These entries have no supported interaction claim in the current curated catalog; unknown does not mean safe.",
+    "The local AI ranks these gaps for evidence review separately from matched findings. Every unanswered pair is included below.",
     gap_bullets, "", "## What the visualizations show",
     "- The timeline shows entered consumption times, not absorption kinetics. Selecting an intake filters the findings.",
     "- Network and matrix colors describe evidence status, not effect strength or safety. The findings list provides the same relationships and sources.",
@@ -237,13 +269,46 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
   if (!status$available) stop(status$message)
   evidence <- explainability_payload(result)
   findings <- llm_finding_rows(evidence)
+  gaps <- llm_gap_rows(evidence)
+  if (!length(findings) && !length(gaps)) {
+    return(list(text = format_grounded_explanation(evidence, findings, list()),
+      model = llm_model_name(), endpoint = llm_endpoint(),
+      generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
+      generation_mode = "evidence_only", explanation_method = "evidence_selection",
+      grounded_rule_ids = character()))
+  }
   generated <- list()
+  lead_gap_id <- NULL
   started <- proc.time()[["elapsed"]]
+  if (length(gaps)) {
+    prompt <- paste(
+      "Give an opinionated catalog-review priority for the supplied unanswered interaction pairs.",
+      "Choose the single pair you would investigate first, considering its category, scenario pair, and catalog status. Use only a supplied gap_id.",
+      "This is a research/catalog priority. Do not infer effects, safety, absorption, urgency, or dose changes from missing catalog coverage.",
+      "Return JSON only with one field, lead_gap_id, containing exactly one supplied gap_id.",
+      as.character(jsonlite::toJSON(list(gaps = gaps), auto_unbox = TRUE, null = "null", na = "null")),
+      sep = "\n")
+    payload <- llm_generation_payload(prompt)
+    payload$options$num_predict <- 120L
+    payload$options$num_ctx <- 8192L
+    gap_ids <- lapply(gaps, function(x) x$gap_id)
+    payload$format <- list(type = "object", required = list("lead_gap_id"), additionalProperties = FALSE,
+      properties = list(lead_gap_id = list(type = "string", enum = gap_ids)))
+    remaining <- timeout_seconds - (proc.time()[["elapsed"]] - started)
+    if (remaining <= 0) stop("Explanation timed out. Try a smaller scenario.")
+    response <- ollama_request("/api/generate", payload, remaining)
+    if (is.null(response$response) || !nzchar(trimws(response$response))) stop("The model returned an empty explanation.")
+    if (identical(response$done, FALSE) || identical(response$done_reason, "length"))
+      stop("The model stopped before completing the explanation. Try a smaller scenario.")
+    decoded <- tryCatch(jsonlite::fromJSON(strip_reasoning_trace(response$response), simplifyVector = FALSE),
+      error = function(e) stop("The model returned an unreadable explanation. Please try again."))
+    lead_gap_id <- validate_llm_gap_priority(decoded, gaps)
+  }
   for (finding in findings) {
     batch <- list(finding)
     prompt <- paste(
       "Select the most informative supplied explanation for this single scenario finding.",
-      "The final report also has a separate section that explicitly lists every uncatalogued or unresolved pair; do not describe those pairs as safe or as proven interactions.",
+      "Uncatalogued or unresolved pairs are prioritized in a separate section; do not describe those pairs as safe or as proven interactions.",
       "Return JSON only, with a findings array. Each entry must contain finding_id, status, and explanation.",
       "Copy finding_id and status exactly. Include every supplied finding exactly once.",
       "Copy one allowed explanation exactly. Do not paraphrase, add claims, or combine explanations.",
@@ -271,9 +336,9 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
       error = function(e) stop("The model returned an unreadable explanation. Please try again."))
     generated <- c(generated, validate_llm_findings(decoded, batch))
   }
-  list(text = format_grounded_explanation(evidence, findings, generated), model = llm_model_name(),
+  list(text = format_grounded_explanation(evidence, findings, generated, lead_gap_id), model = llm_model_name(),
     endpoint = llm_endpoint(), generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
-    generation_mode = if (length(findings)) "ai" else "evidence_only",
+    generation_mode = if (length(findings)) "ai" else "ai_coverage_only",
     explanation_method = "evidence_selection",
     grounded_rule_ids = unique(vapply(findings, function(x) x$rule_id, character(1))))
 }
