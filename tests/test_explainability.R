@@ -9,11 +9,20 @@ gaps <- app_env$llm_gap_rows(e)
 stopifnot(length(findings) == 2L)
 fails <- function(expr) inherits(tryCatch(force(expr), error = identity), "error")
 stopifnot(length(gaps) == length(e$unaccounted_pairs), all(nzchar(vapply(gaps, `[[`, character(1), "gap_id"))))
-priorities <- list(lead_finding_id = findings[[2]]$finding_id, lead_gap_id = gaps[[2]]$gap_id)
-stopifnot(identical(app_env$validate_llm_priorities(priorities, findings, gaps), priorities))
-bad_priorities <- priorities; bad_priorities$lead_gap_id <- "invented_gap"
+gap_ids <- vapply(gaps, `[[`, character(1), "gap_id")
+response_priorities <- list(lead_finding_id = findings[[2]]$finding_id, lead_gap_id = gaps[[2]]$gap_id,
+  gap_reviews = setNames(lapply(gaps, function(g) app_env$llm_gap_review_options(g)[[1]]), gap_ids))
+priorities <- app_env$validate_llm_priorities(response_priorities, findings, gaps)
+stopifnot(identical(priorities$lead_finding_id, response_priorities$lead_finding_id),
+  identical(priorities$lead_gap_id, response_priorities$lead_gap_id),
+  length(priorities$gap_reviews) == length(gaps), setequal(names(priorities$gap_reviews), gap_ids))
+bad_priorities <- response_priorities; bad_priorities$lead_gap_id <- "invented_gap"
 stopifnot(fails(app_env$validate_llm_priorities(bad_priorities, findings, gaps)))
-bad_priorities <- priorities; bad_priorities$lead_finding_id <- NULL
+bad_priorities <- response_priorities; bad_priorities$lead_finding_id <- NULL
+stopifnot(fails(app_env$validate_llm_priorities(bad_priorities, findings, gaps)))
+bad_priorities <- response_priorities; bad_priorities$gap_reviews[[1]] <- "The gap is important."
+stopifnot(fails(app_env$validate_llm_priorities(bad_priorities, findings, gaps)))
+bad_priorities <- response_priorities; bad_priorities$gap_reviews <- bad_priorities$gap_reviews[-1]
 stopifnot(fails(app_env$validate_llm_priorities(bad_priorities, findings, gaps)))
 report <- app_env$format_grounded_explanation(e, findings, priorities)
 lead_pair <- if (identical(findings[[2]]$category, "drug_findings"))
@@ -30,7 +39,8 @@ stopifnot(all(vapply(findings, function(f) grepl(f$source_url, report, fixed = T
   grepl(paste("I would investigate", gaps[[2]]$pair, "first."), report, fixed = TRUE),
   grepl("Nutrient + medication:", report, fixed = TRUE),
   grepl("Medication + medication: A and B", med_gap_report, fixed = TRUE),
-  all(vapply(gaps, function(g) grepl(g$pair, report, fixed = TRUE), logical(1))))
+  all(vapply(gaps, function(g) grepl(g$pair, report, fixed = TRUE) &&
+    grepl(priorities$gap_reviews[[g$gap_id]], report, fixed = TRUE), logical(1))))
 
 mode <- "ok"; requests <- 0L
 app_env$ollama_request <- function(path, payload = NULL, timeout_seconds = 120) {
@@ -48,10 +58,18 @@ app_env$ollama_request <- function(path, payload = NULL, timeout_seconds = 120) 
     selected$lead_finding_id <- payload$format$properties$lead_finding_id$enum[[1]]
   if ("lead_gap_id" %in% names(payload$format$properties))
     selected$lead_gap_id <- payload$format$properties$lead_gap_id$enum[[1]]
+  if ("gap_reviews" %in% names(payload$format$properties)) {
+    schema <- payload$format$properties$gap_reviews
+    ids <- names(schema$properties)
+    stopifnot(identical(schema$required, ids), isFALSE(schema$additionalProperties), length(ids) > 0L)
+    selected$gap_reviews <- setNames(lapply(ids, function(id) schema$properties[[id]]$enum[[1]]), ids)
+  }
   list(response = as.character(jsonlite::toJSON(selected, auto_unbox = TRUE)), done = TRUE)
 }
 generated <- app_env$generate_llm_explanation(r)
 stopifnot(requests == 1L, grepl("AI's take", generated$text, fixed = TRUE),
+  length(gregexpr("**AI view:**", generated$text, fixed = TRUE)[[1]]) == length(gaps),
+  all(vapply(gaps, function(g) grepl(g$pair, generated$text, fixed = TRUE), logical(1))),
   identical(generated$grounded_rule_ids, unique(vapply(findings, function(f) f$rule_id, character(1)))))
 for (failure in c("empty", "truncated", "malformed", "timeout", "unavailable", "missing")) {
   mode <- failure

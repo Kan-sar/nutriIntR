@@ -206,6 +206,41 @@ llm_gap_rows <- function(evidence) {
   })
 }
 
+llm_gap_review_options <- function(gap) {
+  nutrient_medication <- grepl("nutrient", gap$category, ignore.case = TRUE) &&
+    grepl("medication", gap$category, ignore.case = TRUE)
+  medication_pair <- grepl("medication", gap$category, ignore.case = TRUE) && !nutrient_medication
+  if (identical(gap$status, "timing_unresolved")) return(c(
+    paste("I would prioritize a timing-specific search for", gap$pair,
+      "because this order or interval is outside the cataloged timing evidence."),
+    paste("I would look for studies matching this sequence and time gap for", gap$pair,
+      "before drawing a conclusion.")))
+  if (identical(gap$status, "unsupported_form")) return(c(
+    paste("I would seek studies using the entered forms of", gap$pair,
+      "because the matching catalog evidence does not cover them."),
+    paste("I would prioritize a form-specific search for", gap$pair,
+      "before applying evidence from other forms.")))
+  if (nutrient_medication) return(c(
+    paste("I would search medication-specific evidence for", gap$pair,
+      "because this catalog has no matching nutrient-medication rule."),
+    paste("I would keep", gap$pair,
+      "on the open research list and check sources specific to this medication.")))
+  if (medication_pair) return(c(
+    paste("I would search for direct evidence on", gap$pair,
+      "because this catalog has no matching medication-pair rule."),
+    paste("I would keep", gap$pair,
+      "open for pair-specific source review before drawing a conclusion.")))
+  if (identical(gap$status, "unsupported_pair")) return(c(
+    paste("I would search for direct evidence on", gap$pair,
+      "at the entered amounts and timing; this catalog has no matching pair."),
+    paste("I would keep", gap$pair,
+      "on the open research list and look for studies using these forms and times.")))
+  c(paste("I would investigate", gap$pair,
+    "in the entered context because the current catalog does not resolve this status."),
+    paste("I would keep", gap$pair,
+      "open and look for evidence that matches the recorded scenario."))
+}
+
 validate_llm_priorities <- function(response, findings, gaps) {
   read_id <- function(value, items, field) {
     if (!length(items)) {
@@ -218,9 +253,29 @@ validate_llm_priorities <- function(response, findings, gaps) {
     if (!value %in% expected) stop("The AI selected an item outside the scenario. Please try again.")
     value
   }
+  gap_reviews <- character()
+  if (length(gaps)) {
+    reviews <- response$gap_reviews
+    expected <- vapply(gaps, `[[`, character(1), "gap_id")
+    if (!is.list(reviews) || length(reviews) != length(gaps) ||
+        is.null(names(reviews)) || anyDuplicated(names(reviews)) || !setequal(names(reviews), expected))
+      stop("The AI did not give a review take for every unanswered interaction. Please try again.")
+    gap_reviews <- vapply(expected, function(id) {
+      value <- reviews[[id]]
+      gap <- gaps[[match(id, expected)]]
+      if (!is.character(value) || length(value) != 1L || is.na(value) ||
+          !value %in% llm_gap_review_options(gap))
+        stop("The AI returned a review outside the allowed take for an unanswered pair. Please try again.")
+      value
+    }, character(1))
+    names(gap_reviews) <- expected
+  } else if (!is.null(response$gap_reviews) && length(response$gap_reviews)) {
+    stop("The AI returned reviews for unanswered pairs outside this scenario. Please try again.")
+  }
   list(
     lead_finding_id = read_id(response$lead_finding_id, findings, "supported interaction"),
-    lead_gap_id = read_id(response$lead_gap_id, gaps, "unanswered interaction")
+    lead_gap_id = read_id(response$lead_gap_id, gaps, "unanswered interaction"),
+    gap_reviews = gap_reviews
   )
 }
 
@@ -274,7 +329,12 @@ format_grounded_explanation <- function(evidence, findings, priorities = NULL) {
       category <- if (grepl("medication", x$category, ignore.case = TRUE)) {
         if (grepl("nutrient", x$category, ignore.case = TRUE)) "Nutrient + medication" else "Medication + medication"
       } else "Nutrient + nutrient"
-      paste0(i, ". **", category, ": ", plain(x$pair), " (", human(x$status), ")**: ", plain(x$reason))
+      review <- if (is.null(priorities$gap_reviews) || !x$gap_id %in% names(priorities$gap_reviews)) NULL else
+        priorities$gap_reviews[[x$gap_id]]
+      if (is.null(review) || !nzchar(review))
+        review <- paste("I would investigate whether the catalog covers", x$pair, "for the entered forms and timing.")
+      paste0(i, ". **", category, ": ", plain(x$pair), " (", human(x$status), ")**: ",
+        plain(x$reason), " **AI view:** ", plain(review))
     }, character(1))
   take <- character()
   if (length(findings)) {
@@ -315,13 +375,14 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
       "Choose an opinionated lead interaction and lead coverage gap for this scenario.",
       "Select the supported relationship that deserves the most attention based on its evidence, scope, entered amounts, route and chronology.",
       "Also select the unanswered pair that should be investigated first, considering its category and scenario context.",
-      "This is prioritization, not an effect-size or safety ranking. Do not infer effects for unanswered pairs.",
-      "Return JSON containing exactly the requested ID fields, using only supplied IDs. Do not write prose.",
+      "For EVERY unanswered pair, choose one allowed first-person AI review opinion for that exact pair.",
+      "These options are intentionally grounded in each pair's catalog status; do not invent effects or safety conclusions.",
+      "Return JSON containing exactly the requested fields and every supplied gap ID.",
       as.character(jsonlite::toJSON(list(events = evidence$events, medications = evidence$medications,
         supported_interactions = findings, unanswered_interactions = gaps), auto_unbox = TRUE, null = "null", na = "null")),
       sep = "\n")
     payload <- llm_generation_payload(prompt)
-    payload$options$num_predict <- 100L
+    payload$options$num_predict <- min(2000L, 120L + 48L * length(gaps))
     payload$options$num_ctx <- 8192L
     properties <- list()
     required <- list()
@@ -332,6 +393,12 @@ generate_llm_explanation <- function(result, timeout_seconds = 120) {
     if (length(gaps)) {
       required <- c(required, list("lead_gap_id"))
       properties$lead_gap_id <- list(type = "string", enum = lapply(gaps, function(x) x$gap_id))
+      required <- c(required, list("gap_reviews"))
+      review_properties <- setNames(lapply(gaps, function(gap)
+        list(type = "string", enum = as.list(llm_gap_review_options(gap)))),
+        vapply(gaps, `[[`, character(1), "gap_id"))
+      properties$gap_reviews <- list(type = "object", required = names(review_properties),
+        additionalProperties = FALSE, properties = review_properties)
     }
     payload$format <- list(type = "object", required = required, additionalProperties = FALSE,
       properties = properties)
