@@ -17,6 +17,10 @@ jobs:
         run: Rscript tests/run_tests.R
       - name: Dashboard workflow tests
         run: Rscript tests/test_app.R
+      - name: Linked explorer workflow tests
+        run: Rscript tests/test_explorer.R
+      - name: AI explanation and failure-path tests
+        run: Rscript tests/test_explainability.R
       - name: Selected nutrient food correlation tests
         run: Rscript tests/test_food.R
       - name: Generate demonstration outputs
@@ -30,7 +34,7 @@ jobs:
       - name: Build R package
         run: R CMD build .
       - name: Check R package
-        run: R CMD check --no-manual nutrientengine_0.3.0.tar.gz
+        run: R CMD check --no-manual nutrientengine_0.4.0.tar.gz
       - uses: actions/upload-artifact@v4
         if: always()
         with:

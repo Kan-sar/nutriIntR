@@ -15,6 +15,11 @@ medication_data <- medication_catalog()
 medication_choices <- stats::setNames(medication_data$key, medication_data$name)
 clock_default <- ""
 
+# An omitted meal must not imply that separate intakes belonged to the same meal.
+meal_label <- function(value, id) {
+  if (is.null(value) || !nzchar(trimws(value))) paste0("unassigned_", id) else trimws(value)
+}
+
 clock_input <- function(local) {
   if (is.null(local) || !nzchar(local)) stop("Select a consumption time.")
   parse_consumed_at(local)
@@ -67,104 +72,8 @@ prepare_timing <- function(payload, mode, origin) {
 
 view_heading <- function(title, description) div(class = "view-heading", h2(title), p(description))
 
-ui <- fluidPage(
-  title = "Nutrient Lab | Interaction engine",
-  tags$head(tags$link(rel = "stylesheet", href = "style.css"),
-    tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
-    tags$script(src = "intakes.js")),
-  tags$a(class = "skip-link", href = "#workspace", "Skip to results"),
-  tags$header(class = "app-header",
-    div(class = "brand", span(class = "brand-mark", "n"),
-      div(strong("Nutrient Lab"))),
-    div(class = "header-meta", span(paste(nrow(catalog), "nutrients /",
-      nrow(medication_data), "drugs")))),
-  div(class = "page-intro", div(div(class = "eyebrow", "Explore / compare / understand"),
-    h1("One timeline for nutrients and drugs."),
-    p("Compare nutrient–nutrient, nutrient–drug and drug–drug evidence in one place."))),
-  div(class = "workspace-grid",
-    tags$aside(class = "composer", `aria-label` = "Scenario builder",
-      div(class = "section-title", span(class = "step-label", "01"), h2("Build your scenario")),
-      p(class = "note", "Build one timeline with separate nutrient and drug selectors, then analyze all three pair types."),
-      div(class = "composer-group nutrient-builder", h3("Add a nutrient"),
-        selectizeInput("nutrient", "Nutrient dropdown", c("Choose a nutrient" = "", nutrient_choices), selected = ""),
-        div(class = "field-hint", textOutput("nutrient_hint")),
-        selectInput("form", "Chemical form", character()),
-        fluidRow(column(6, numericInput("amount", "Amount", NA_real_, min = 0)),
-                 column(6, selectInput("unit", "Unit", character()))),
-        textInput("meal", "Meal label", ""),
-        actionButton("add", "+ Add nutrient to draft", class = "btn-add",
-          onclick = "syncIntakeFields(['amount','meal','consumed_time','minute']);")),
-      div(class = "field-divider", "Shared timing"),
-      radioButtons("timing_mode", "Timing", c("Clock time" = "clock", "Minutes from start" = "offset"), selected = "clock", inline = TRUE),
-      conditionalPanel("input.timing_mode == 'offset'", numericInput("minute", "Minute", NA_real_, min = 0)),
-      conditionalPanel("input.timing_mode == 'clock'",
-        tags$div(class = "form-group", tags$label(`for` = "consumed_time", "Time consumed"),
-          tags$input(id = "consumed_time", type = "time", class = "form-control",
-            value = clock_default, step = "60",
-            onchange = "Shiny.setInputValue('consumed_time', this.value, {priority:'event'});")),
-        p(class = "field-hint", "Local time. All clock entries refer to the same day.")),
-      div(class = "composer-group drug-builder", h3("Add a drug"),
-        p(class = "note", "Drug checks use selected official-label rules and the same timeline."),
-        selectizeInput("drug", "Drug dropdown", c("Choose a medication" = "", medication_choices), selected = ""),
-        selectInput("medication_route", "Route", c("oral"), selected = "oral"),
-        conditionalPanel("input.timing_mode == 'offset'", numericInput("medication_minute", "Medication minute", NA_real_, min = 0)),
-        conditionalPanel("input.timing_mode == 'clock'",
-          tags$div(class = "form-group", tags$label(`for` = "medication_time", "Medication time"),
-            tags$input(id = "medication_time", type = "time", class = "form-control",
-              value = "", step = "60",
-              onchange = "Shiny.setInputValue('medication_time', this.value, {priority:'event'});"))),
-        actionButton("add_medication", "+ Add drug to draft", class = "btn-add",
-          onclick = "syncIntakeFields(['medication_time','medication_minute']);")),
-      tags$details(class = "json-editor", tags$summary("Advanced / edit scenario JSON"),
-        p(class = "note", "Edit or remove events and change study context here. Use dated local times for overnight scenarios."),
-        textAreaInput("scenario", "Scenario JSON", empty_text, height = "260px")),
-      div(class = "composer-actions", textOutput("draft_summary"),
-        actionButton("analyze", "Analyze scenario", class = "btn-primary", onclick = "syncIntakeFields(['scenario']);"),
-        actionButton("reset", "Clear scenario", class = "btn-reset"))
-    ),
-    tags$main(id = "workspace", tabindex = "-1", class = "results-workspace",
-      div(class = "workspace-toolbar", div(class = "section-title", span(class = "step-label", "02"), h2("Explore results")),
-        downloadButton("download", "Export JSON")),
-      uiOutput("draft_manager"),
-      uiOutput("status"),
-      uiOutput("metrics"),
-      div(class = "analysis-card",
-      tabsetPanel(
-        id = "analysis_view",
-        tabPanel("Timeline", view_heading("Intake timeline", "Every intake in order, with amounts and local consumption times."),
-          plotOutput("timeline", height = "340px"), h3("Analyzed intakes"), tableOutput("events")),
-        tabPanel("Nutrient–nutrient", view_heading("Nutrient–nutrient interactions", "Explore every directed nutrient pair, with matched evidence and explicit unknowns."),
-          plotOutput("network", height = "460px"), uiOutput("network_key"),
-          h3("Directed nutrient pairs"), tableOutput("findings"),
-          p(class = "note", "Arrows show matched evidence. Dashed gray arrows have unresolved applicability. Missing arrows indicate catalog gaps.")),
-        tabPanel("Nutrient–drug", view_heading("Nutrient–drug interactions", "Selected label-based interactions with timing and scope kept explicit."),
-          plotOutput("medication_network", height = "440px"), tableOutput("medications"),
-          h3("Matched and unresolved pairs"), tableOutput("medication_findings"),
-          p(class = "note", "This research prototype does not replace a pharmacist, prescriber or product-specific medication instructions.")),
-        tabPanel("Drug–drug", view_heading("Drug–drug interactions", "Compare every selected drug pair against the small official-label catalog."),
-          plotOutput("drug_network", height = "420px"), h3("Selected drug pairs"), tableOutput("drug_findings"),
-          p(class = "note", "Uncataloged means unknown in this version, not safe. Never change medication without a qualified clinician.")),
-        tabPanel("Dose reference", view_heading("Dose in context", "Study observations and the recency of your intakes, kept distinct."),
-          plotOutput("curve", height = "360px"), uiOutput("dose_recency"), uiOutput("dose_key"),
-          p(class = "note", "Relative iron absorption in wheat-roll experiments. Enable interpolation in scenario JSON to connect the study observations.")),
-        tabPanel("Sources", view_heading("Trace the evidence", "Study scope, dose basis and source details."),
-          h3("Nutrient evidence"), tableOutput("sources"),
-          h3("Medication label evidence"), tableOutput("medication_sources"),
-          h3("Drug-drug label evidence"), tableOutput("drug_sources")),
-        tabPanel("USDA catalog", view_heading("The nutrient library", "All 477 definitions from USDA nutrient.csv, April 2026."),
-          textInput("catalog_search", "Filter definitions by name, ID or unit", ""),
-          textOutput("catalog_count"), tableOutput("catalog_table"),
-          p(class = "note", "First 50 matches shown. Refine the filter to find more.")),
-        tabPanel("Food correlations", view_heading("Your nutrients across foods", "A custom correlation matrix for the nutrients in your analyzed scenario."), uiOutput("food")),
-        tabPanel("AI explanation", view_heading("Grounded explanation", "DeepSeek explains the deterministic findings and visual encodings without creating new interaction claims."),
-          uiOutput("llm_status"), actionButton("explain", "Generate explanation", class = "btn-primary"),
-          uiOutput("llm_error"), uiOutput("llm_explanation"),
-          p(class = "note", "Model output can be wrong. Verify medication decisions against the linked label and a qualified clinician.")),
-        tabPanel("JSON", view_heading("Structured result", "The same analysis, ready for reproducible workflows and downstream tools."), verbatimTextOutput("json"))
-      ))
-    )
-  )
-)
+source(file.path(project_root, "app", "explorer.R"), local = TRUE, encoding = "UTF-8")
+source(file.path(project_root, "app", "workspace-ui.R"), local = TRUE, encoding = "UTF-8")
 
 server <- function(input, output, session) {
   observeEvent(input$nutrient, {
@@ -226,12 +135,16 @@ server <- function(input, output, session) {
     entries <- list()
     for (collection in c("events", "medications")) for (item in payload[[collection]]) {
       nutrient <- collection == "events"
-      label <- if (nutrient) resolve_nutrient(item$nutrient, catalog)$name else resolve_medication(item$medication)$name
+      label <- if (nutrient) {
+        resolved <- resolve_nutrient(item$nutrient, catalog)
+        friendly <- nutrient_display_names(catalog)[match(resolved$key, catalog$key)]
+        if (is.na(friendly)) resolved$name else friendly
+      } else resolve_medication(item$medication)$name
       time <- if (!is.null(item$consumed_at)) item$consumed_at else paste0("+", item$time_minutes, " min")
       entries[[length(entries) + 1L]] <- list(token = paste(collection, item$id, sep = ":"),
         collection = collection, id = item$id, item = item,
         label = paste(if (nutrient) "Nutrient:" else "Medication:", label,
-          if (nutrient) paste(item$amount, item$unit) else item$route, " / ", time, " / ", item$id))
+          if (nutrient) paste(item$amount, item$unit) else item$route, " / ", time))
     }
     entries
   })
@@ -240,34 +153,34 @@ server <- function(input, output, session) {
       entries <- draft_entries()
       if (!length(entries)) return(div(class = "intake-manager", h3("Your intakes"),
         p(class = "note", "No intakes yet. Add a nutrient or medication to begin.")))
-      choices <- stats::setNames(vapply(entries, function(e) e$token, character(1)),
-        vapply(entries, function(e) e$label, character(1)))
-      selected <- isolate(input$draft_item)
-      if (is.null(selected) || !selected %in% choices) selected <- unname(choices[1])
       div(class = "intake-manager", h3("Your intakes"),
-        selectInput("draft_item", "Choose an intake to edit or remove", choices, selected = selected),
-        div(class = "intake-actions", actionButton("edit_item", "Edit selected intake"),
-          actionButton("remove_item", "Remove selected intake", class = "btn-remove")))
+        tags$ul(class = "intake-list", lapply(entries, function(e) tags$li(
+          span(class = "intake-label", e$label),
+          div(class = "intake-actions",
+            tags$button(type = "button", class = "btn btn-default intake-action", `data-token` = e$token,
+              `data-action` = "edit", `aria-label` = paste("Edit", e$label), "Edit"),
+            tags$button(type = "button", class = "btn btn-default btn-remove intake-action", `data-token` = e$token,
+              `data-action` = "remove", `aria-label` = paste("Remove", e$label), "Remove"))))))
     }, error = function(e) div(class = "intake-manager", p("Correct the scenario JSON to manage intakes.")))
   })
-  selected_entry <- function() {
+  selected_entry <- function(token = input$draft_item) {
     entries <- draft_entries()
-    matches <- Filter(function(e) identical(e$token, input$draft_item), entries)
+    matches <- Filter(function(e) identical(e$token, token), entries)
     if (length(matches) != 1L) stop("Select an intake first.")
     matches[[1]]
   }
   editing <- reactiveVal(NULL)
-  observeEvent(input$remove_item, {
+  observeEvent(list(input$remove_item, input$remove_intake), {
     tryCatch({
-      entry <- selected_entry(); payload <- draft_payload()
+      entry <- selected_entry(if (!is.null(input$remove_intake)) input$remove_intake else input$draft_item); payload <- draft_payload()
       payload[[entry$collection]] <- Filter(function(e) e$id != entry$id, payload[[entry$collection]])
       publish_draft(payload)
       showNotification("Intake removed. Analyze to refresh results.", type = "message")
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
-  })
-  observeEvent(input$edit_item, {
+  }, ignoreInit = TRUE)
+  observeEvent(list(input$edit_item, input$edit_intake), {
     tryCatch({
-      entry <- selected_entry(); item <- entry$item; nutrient <- entry$collection == "events"
+      entry <- selected_entry(if (!is.null(input$edit_intake)) input$edit_intake else input$draft_item); item <- entry$item; nutrient <- entry$collection == "events"
       editing(entry)
       fields <- if (nutrient) {
         resolved <- resolve_nutrient(item$nutrient, catalog)
@@ -275,7 +188,8 @@ server <- function(input, output, session) {
           selectInput("edit_form", "Chemical form", unique(c(item$form, nutrient_forms(resolved$key, resolved$default_form))), selected = item$form),
           numericInput("edit_amount", "Amount", item$amount, min = 0),
           selectInput("edit_unit", "Unit", nutrient_units(resolved$canonical_unit, resolved$unit_family), selected = item$unit),
-          textInput("edit_meal", "Meal label", item$meal_id))
+          textInput("edit_meal", "Meal label (optional)",
+            if (identical(item$meal_id, paste0("unassigned_", item$id))) "" else item$meal_id))
       } else {
         resolved <- resolve_medication(item$medication)
         choices <- medication_choices
@@ -295,7 +209,7 @@ server <- function(input, output, session) {
         footer = tagList(modalButton("Cancel"), actionButton("save_item", "Save changes", class = "btn-primary",
           onclick = "syncIntakeFields(['edit_nutrient','edit_form','edit_amount','edit_unit','edit_meal','edit_drug','edit_route','edit_date','edit_time','edit_minute']);"))))
     }, error = function(e) showNotification(conditionMessage(e), type = "error"))
-  })
+  }, ignoreInit = TRUE)
   observeEvent(input$edit_nutrient, {
     req(editing(), input$edit_nutrient)
     resolved <- resolve_nutrient(input$edit_nutrient, catalog)
@@ -316,7 +230,7 @@ server <- function(input, output, session) {
       item <- entry$item
       if (entry$collection == "events") {
         item$nutrient <- input$edit_nutrient; item$form <- input$edit_form
-        item$amount <- input$edit_amount; item$unit <- input$edit_unit; item$meal_id <- input$edit_meal
+        item$amount <- input$edit_amount; item$unit <- input$edit_unit; item$meal_id <- meal_label(input$edit_meal, item$id)
       } else {item$medication <- input$edit_drug; item$route <- input$edit_route}
       if (!is.null(entry$item$consumed_at) && nzchar(entry$item$consumed_at)) {
         time <- if (is.null(input$edit_time)) sub("^.*T", "", entry$item$consumed_at) else clock_input(input$edit_time)
@@ -348,9 +262,11 @@ server <- function(input, output, session) {
       error(NULL); analyzed_text(text); explanation(NULL); explanation_error(NULL)
     }, error = function(e) {current(NULL); error(conditionMessage(e))})
   }
-  observeEvent(input$analyze, run(draft_text()))
+  # Apply the flushed JSON field before analysis, including rapid edit-and-click.
+  observeEvent(input$analyze, run(draft_text()), priority = -1)
   observeEvent(input$reset, {
     publish_draft(jsonlite::fromJSON(empty_text, simplifyVector = FALSE)); editing(NULL); removeModal()
+    analyzed_text(NULL)
     updateSelectizeInput(session, "nutrient", selected = "")
     updateSelectizeInput(session, "drug", selected = "")
     updateNumericInput(session, "amount", value = NA_real_)
@@ -370,7 +286,7 @@ server <- function(input, output, session) {
       payload <- prepare_timing(payload, input$timing_mode, origin)
       event <- list(id = paste0("event_", index), nutrient = input$nutrient,
         form = input$form, amount = input$amount, unit = input$unit,
-        meal_id = input$meal)
+        meal_id = meal_label(input$meal, paste0("event_", index)))
       if (input$timing_mode == "clock") event$consumed_at <- origin else event$time_minutes <- input$minute
       payload$events <- append(payload$events, list(event))
       publish_draft(payload)
@@ -398,7 +314,9 @@ server <- function(input, output, session) {
   output$status <- renderUI({
     if (!is.null(error())) return(div(class = "status status-error", role = "alert", strong("Check scenario: "), error()))
     if (is.null(current())) return(div(class = "status", role = "status", `aria-live` = "polite",
-      strong("Build your scenario"), span("Add your intakes, then analyze. Analysis requires at least one nutrient.")))
+      strong(if (is.null(analyzed_text())) "Build your scenario" else "Draft changed"),
+      span(if (is.null(analyzed_text())) "Add your intakes, then analyze. Analysis requires at least one nutrient."
+        else "Previous results were cleared. Analyze again to refresh findings and export.")))
     result <- current()
     changed <- !identical(draft_text(), analyzed_text())
     div(class = if (changed) "status status-draft" else "status", role = "status", `aria-live` = "polite",
@@ -418,9 +336,9 @@ server <- function(input, output, session) {
     div(class = "metrics",
       metric(nrow(result$events), "Nutrients", "In the analyzed scenario"),
       metric(nrow(result$medications), "Drugs", "In the analyzed scenario"),
-      metric(matched, "Nutrient–nutrient", "Evidence matches"),
-      metric(medication_matches, "Nutrient–drug", "Evidence matches"),
-      metric(drug_matches, "Drug–drug", "Evidence matches"))
+      metric(matched, "Nutrient\u2013nutrient", "Evidence matches"),
+      metric(medication_matches, "Nutrient\u2013drug", "Evidence matches"),
+      metric(drug_matches, "Drug\u2013drug", "Evidence matches"))
   })
   output$timeline <- renderPlot({req(current()); plot_timeline(current())})
   output$network <- renderPlot({req(current()); plot_network(current())})
@@ -503,15 +421,22 @@ server <- function(input, output, session) {
   output$drug_sources <- renderTable(read_drug_evidence()[,
     c("rule_id", "drug_a_name", "drug_b_name", "clinical_significance", "url", "limitation")])
   output$llm_status <- renderUI({
+    input$refresh_llm
+    input$explain
     status <- llm_status()
     div(class = if (status$available) "status" else "status status-draft",
-      strong(if (status$available) "DeepSeek ready" else "DeepSeek unavailable"),
-      span(paste(status$model, "at", status$endpoint, "-", status$message)))
+      role = "status", `aria-live` = "polite",
+      strong(if (status$available) "Local AI ready" else "Local AI unavailable"),
+      span(if (status$available) paste("Using", status$model) else status$message))
   })
   observeEvent(input$explain, {
-    req(current()); explanation_error(NULL)
-    tryCatch(explanation(generate_llm_explanation(current())),
-      error = function(e) { explanation(NULL); explanation_error(conditionMessage(e)) })
+    req(current()); explanation_error(NULL); explanation(NULL)
+    session$sendCustomMessage("ai-busy", TRUE)
+    tryCatch(withProgress(message = "Generating a local explanation", detail = "Checking each matched finding against the analysis...", value = .15, {
+      item <- generate_llm_explanation(current())
+      incProgress(.85); explanation(item)
+    }), error = function(e) explanation_error(conditionMessage(e)),
+      finally = session$sendCustomMessage("ai-busy", FALSE))
   })
   output$llm_error <- renderUI({
     if (is.null(explanation_error())) return(NULL)
@@ -525,11 +450,11 @@ server <- function(input, output, session) {
     tagList(
       div(class = "llm-report", shiny::markdown(safe_markdown)),
       div(class = "llm-meta",
-        span(class = "llm-meta-label", "Generated locally"),
+        span(class = "llm-meta-label", if (identical(item$generation_mode, "evidence_only")) "Evidence summary (no AI findings to explain)" else "Generated locally"),
         span(class = "llm-meta-value", item$model),
         span(class = "llm-meta-label", "Grounded rules"),
         span(class = "llm-meta-value",
-          if (length(item$grounded_rule_ids)) paste(item$grounded_rule_ids, collapse = " · ") else "none"))
+          if (length(item$grounded_rule_ids)) paste(item$grounded_rule_ids, collapse = " \u00b7 ") else "none"))
     )
   })
   output$json <- renderText({req(current()); as.character(result_json(current()))})
@@ -552,16 +477,29 @@ server <- function(input, output, session) {
       format(data$rows, big.mark = ","), "foods / per 100 g / Spearman correlation")),
       if (length(data$unavailable)) p(class = "note", "Not available in this food dataset: ", paste(data$unavailable, collapse = ", ")),
       if (length(data$labels) < 2L) p("Add at least two nutrients with food data, then analyze your scenario.")
-      else tagList(plotOutput("food_heatmap", height = paste0(max(500, length(data$labels) * 24), "px")), tableOutput("food_pairs")))
+      else tagList(echarts4r::echarts4rOutput("food_heatmap", height = paste0(max(400, length(data$labels) * 24), "px")),
+        p(class = "note", "Blank cells have insufficient or constant data; they do not mean zero correlation. Exact coefficients and sample counts are in the table."), tableOutput("food_pairs")))
   })
-  output$food_heatmap <- renderPlot({
+  output$food_heatmap <- echarts4r::renderEcharts4r({
     data <- food_selected(); req(length(data$labels) >= 2L)
-    plot_food_correlations(data)
+    cells <- list()
+    for (i in seq_along(data$labels)) for (j in seq_along(data$labels)) {
+      value <- data$correlations[i, j]
+      if (!is.na(value)) cells[[length(cells) + 1L]] <- list(value = list(i - 1L, j - 1L, value),
+        name = paste(data$labels[i], "/", data$labels[j], "\u2014 rho:", round(value, 3), "/ foods:", data$pair_counts[i, j]))
+    }
+    explorer_widget(list(grid = list(left = 15, right = 30, top = 20, bottom = 100, containLabel = TRUE),
+      xAxis = list(type = "category", data = as.list(data$labels), axisLabel = list(rotate = 35)),
+      yAxis = list(type = "category", data = as.list(data$labels)),
+      visualMap = list(min = -1, max = 1, orient = "horizontal", left = "center", bottom = 0,
+        inRange = list(color = list("#b55b45", "#f6f7f3", "#17694f"))),
+      series = list(list(type = "heatmap", data = cells))))
   })
   output$food_pairs <- renderTable({
     data <- food_selected(); req(length(data$labels) >= 2L)
     data$pairs
   }, digits = 3, spacing = "m")
+  source(file.path(project_root, "app", "explorer-server.R"), local = TRUE, encoding = "UTF-8")
 }
 
 shinyApp(ui, server)

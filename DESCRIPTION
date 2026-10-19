@@ -10,4 +10,4 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.2)
 Imports: jsonlite, curl, graphics, grDevices, stats, utils
-Suggests: shiny, plumber, renv, knitr, yaml, rmarkdown
+Suggests: shiny, plumber, renv, knitr, yaml, rmarkdown, echarts4r, htmlwidgets

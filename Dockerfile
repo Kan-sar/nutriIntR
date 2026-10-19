@@ -25,6 +25,8 @@ COPY . .
 RUN Rscript scripts/restore_data.R \
     && Rscript tests/run_tests.R \
     && Rscript tests/test_app.R \
+    && Rscript tests/test_explorer.R \
+    && Rscript tests/test_explainability.R \
     && Rscript tests/test_food.R \
     && Rscript scripts/analyze_foods.R \
     && Rscript scripts/demo.R \

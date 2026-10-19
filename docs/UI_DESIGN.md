@@ -1,5 +1,10 @@
 # Interface direction
 
+The current four-section redesign and its validation status are documented in
+[UX_REDESIGN.md](UX_REDESIGN.md). The notes below describe the earlier interface
+and retained chart semantics; its old tab structure and stale-result behavior
+have been superseded.
+
 The dashboard uses an original, restrained research-workspace design. No source
 code, artwork, logos or stylesheets were copied from the references below.
 

@@ -5,14 +5,23 @@ Run the nutrient–nutrient, nutrient–drug and drug–drug interaction explore
 ## Manage your intakes
 
 The dashboard starts empty, with no sample nutrients, medications, doses or times.
-Add your entries, then use **Your intakes** to select an entry and choose **Edit
-selected intake** or **Remove selected intake**. Nutrients can be edited by name,
-form, amount, unit, meal and time; medications by name, route and time. Edits
-preserve intake IDs. Changed drafts clear the previous results; click **Analyze
-scenario** to calculate again. **Clear scenario** removes all entries and resets
-the entry fields. Examples remain available as JSON files under `inst/extdata/`,
-but are not automatically loaded. Analysis currently requires at least one
-nutrient; medication-only drafts can be built and edited before adding a nutrient.
+Use **Your intakes** to add a nutrient or medication, review the draft timeline,
+and edit or remove each intake directly. Required timing appears before the Add
+button. **Analyze scenario** opens **Findings**, where the interactive timeline,
+relationship filters, network and matrix connect to an evidence panel. The findings
+list offers the same relationships without requiring chart interaction.
+
+**Evidence** contains source catalogs and dose references. **Explore** contains the
+nutrient catalog and food correlations. Raw scenario editing and reset are under
+**Advanced scenario controls**; analyzed JSON export is available with current results.
+
+Edits preserve intake IDs and clear previous findings, chart selections, AI explanations,
+and export availability. Analyze again to refresh. Analysis requires at least one
+nutrient; medication-only drafts can still be edited and previewed. Examples remain
+available under `inst/extdata/` and are not loaded automatically.
+
+Interactive charts use the pinned `echarts4r` package and bundled browser assets.
+See [the UX implementation and validation notes](docs/UX_REDESIGN.md).
 
 ## Download and run with Docker
 
@@ -169,7 +178,7 @@ Click the red **Stop** button above the RStudio Console to stop the dashboard. I
 
 ## Screenshot
 
-![nutriIntR dashboard running locally](docs/screenshots/dashboard-overview.png)
+![Linked timeline, findings and evidence panel](docs/screenshots/linked-findings.png)
 
 ## Notes
 

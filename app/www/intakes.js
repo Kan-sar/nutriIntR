@@ -11,6 +11,30 @@ window.syncIntakeFields = function (ids) {
 };
 
 $(function () {
+  Shiny.addCustomMessageHandler("ai-busy", function (busy) {
+    var button = document.getElementById("explain");
+    if (!button) return;
+    button.disabled = busy;
+    button.textContent = busy ? "Generating explanation..." : "Generate explanation";
+    button.setAttribute("aria-busy", busy ? "true" : "false");
+  });
+  Shiny.addCustomMessageHandler("selected-finding", function (message) {
+    document.querySelectorAll(".finding-choice").forEach(function (button) {
+      button.setAttribute("aria-pressed", button.dataset.finding === message.id ? "true" : "false");
+    });
+  });
+  $(document).on("click", ".intake-action", function () {
+    Shiny.setInputValue(this.dataset.action + "_intake", this.dataset.token, {priority: "event"});
+  });
+  $(document).on("click", ".finding-choice", function () {
+    Shiny.setInputValue("choose_finding", this.dataset.finding, {priority: "event"});
+  });
+  // Charts first rendered inside collapsed details need their visible dimensions.
+  document.addEventListener("toggle", function (event) {
+    if (event.target.tagName === "DETAILS" && event.target.open) {
+      window.dispatchEvent(new Event("resize"));
+    }
+  }, true);
   // Shiny custom handlers require exactly one parameter, even for empty messages.
   Shiny.addCustomMessageHandler("clear-intake-times", function (message) {
     ["consumed_time", "medication_time"].forEach(function (id) {
